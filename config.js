@@ -18,7 +18,7 @@ window.APP_CONFIG = {
 
   // ── URL del sito deployato (per il QR code) ──────────
   // Esempio: 'https://colonizzazione-digitale.netlify.app'
-  siteUrl: 'https://YOUR-SITE.netlify.app',
+  siteUrl: 'https://presentazio.devmarco.it',
 
   // ── Analytics password (rivelata a sorpresa in classe) ─
   analyticsToken: 'colonizzazione2026',
