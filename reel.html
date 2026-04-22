@@ -136,7 +136,7 @@
 <div id="conn-banner">📡 Connessione in corso…</div>
 <div id="reel"></div>
 <div id="dots"></div>
-<button id="heart-btn" onclick="sendHeart(event)">🤍</button>
+<button id="heart-btn">🤍</button>
 <div id="track-badge"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -346,6 +346,7 @@ function onSlideLeave(idx) {
 
 document.addEventListener('touchstart', (e) => {
   if (isAnimating) return;
+  if (e.target.closest('#heart-btn')) return; // gestito direttamente dal bottone
   const touch = e.touches[0];
   touchStartY = touch.clientY;
   touchStartX = touch.clientX;
@@ -377,7 +378,7 @@ document.addEventListener('touchmove', (e) => {
 }, { passive: true });
 
 document.addEventListener('touchend', (e) => {
-  if (!isDragging) return;
+  if (!isDragging) return; // già gestito (es. bottone heart)
   isDragging = false;
 
   const touch = e.changedTouches[0];
@@ -425,6 +426,20 @@ document.addEventListener('wheel', (e) => {
 // ═══════════════════════════════════════════════════════════
 const HEART_COOLDOWN = 2000; // ms tra un like e l'altro per stessa slide
 const lastHeartPerSlide = {};
+
+// Gestione touch diretta sul bottone: stopPropagation impedisce
+// al gestore scroll globale di intercettare il tap
+;(function () {
+  const btn = document.getElementById('heart-btn');
+  btn.addEventListener('touchstart', (e) => {
+    e.stopPropagation(); // blocca il touchstart globale
+  }, { passive: true });
+  btn.addEventListener('touchend', (e) => {
+    e.stopPropagation(); // blocca il touchend globale (evita goTo)
+    sendHeart(e);
+  }, { passive: true });
+  btn.addEventListener('click', sendHeart); // desktop / fallback
+})();
 
 async function sendHeart(e) {
   const now = Date.now();
