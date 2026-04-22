@@ -446,20 +446,34 @@ function playHeartSound() {
 // ── Realtime subscription ─────────────────────────────────────
 let viewerCount = 0;
 
-sb
+const rtChannel = sb
   .channel('live')
   .on('postgres_changes', {
     event: 'INSERT', schema: 'public', table: 'hearts'
-  }, () => {
+  }, (payload) => {
+    console.log('[Realtime] ❤️ heart ricevuto:', payload.new);
     showHeartAnimation(3);
   })
   .on('postgres_changes', {
     event: 'INSERT', schema: 'public', table: 'sessions'
-  }, () => {
+  }, (payload) => {
+    console.log('[Realtime] 👤 nuova sessione:', payload.new);
     viewerCount++;
     document.getElementById('viewers-count').textContent = viewerCount;
   })
-  .subscribe();
+  .subscribe((status, err) => {
+    console.log('[Realtime] stato canale:', status, err || '');
+    const dot = document.querySelector('.viewers-dot');
+    if (status === 'SUBSCRIBED') {
+      dot.style.background = '#22c55e'; // verde = connesso
+      console.log('[Realtime] ✅ connesso, in ascolto su hearts e sessions');
+    } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      dot.style.background = '#ef4444'; // rosso = errore
+      console.error('[Realtime] ❌ errore connessione:', status, err);
+    } else {
+      dot.style.background = '#fbbf24'; // giallo = in attesa
+    }
+  });
 
 // Inizializza AudioContext al primo click (requisito browser)
 document.addEventListener('click', () => {

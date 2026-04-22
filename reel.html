@@ -191,7 +191,9 @@ const SESSION = {
 };
 
 async function initSession() {
-  await sb.from('sessions').insert(SESSION);
+  const { error } = await sb.from('sessions').insert(SESSION);
+  if (error) console.error('[Session] ❌ INSERT fallito:', error.message);
+  else console.log('[Session] ✅ sessione creata:', SESSION_ID);
 }
 
 // Chiudi sessione alla fine
@@ -467,13 +469,15 @@ async function sendHeart(e) {
     : (e?.clientX ? e.clientX / window.innerWidth : 0.5);
 
   // Salva su Supabase (triggera realtime su index.html)
-  sb.from('hearts').insert({
+  const { error: hErr } = await sb.from('hearts').insert({
     session_id:  SESSION_ID,
     image_index: currentIndex,
     image_label: SLIDES[currentIndex]?.label || String(currentIndex),
     touch_x_pct: parseFloat(xPct.toFixed(3)),
     hour_of_day: new Date().getHours(),
   });
+  if (hErr) console.error('[Heart] ❌ INSERT fallito:', hErr.message);
+  else console.log('[Heart] ✅ INSERT OK — slide:', SLIDES[currentIndex]?.label);
 }
 
 // ═══════════════════════════════════════════════════════════
