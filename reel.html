@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Colonizzazione Digitale</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  html, body {
+    height:100%; overflow:hidden;
+    background:#000; font-family:'Inter',sans-serif;
+    touch-action:none; /* gestiamo il touch manualmente */
+  }
+
+  /* ── Reel container ──────────────────────────────────── */
+  #reel {
+    position:fixed; inset:0;
+    will-change:transform;
+    transition:transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+
+  /* ── Singola slide ───────────────────────────────────── */
+  .slide {
+    position:absolute; left:0; right:0;
+    height:100dvh;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+
+  /* Slide immagine */
+  .slide-image {
+    width:100%; height:100%;
+    object-fit:cover; object-position:center;
+    display:block; pointer-events:none; user-select:none;
+  }
+
+  /* Slide testuale */
+  .slide-text {
+    width:100%; height:100%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    padding:2.5rem 1.8rem;
+    text-align:center;
+  }
+
+  .slide-eyebrow {
+    font-size:.65rem; letter-spacing:.2em; text-transform:uppercase;
+    margin-bottom:1.2rem; opacity:.7;
+  }
+
+  .slide-title {
+    font-size:clamp(2rem,8vw,3rem); font-weight:900; line-height:1.1;
+    margin-bottom:1.5rem; white-space:pre-line;
+  }
+
+  .slide-body {
+    font-size:clamp(.95rem,4vw,1.2rem); line-height:1.6;
+    opacity:.85; max-width:320px;
+  }
+
+  .slide-footer {
+    position:absolute; bottom:2rem; left:0; right:0;
+    text-align:center; font-size:.7rem; opacity:.5;
+    font-style:italic; padding:0 2rem;
+  }
+
+  /* ── Dots indicator ──────────────────────────────────── */
+  #dots {
+    position:fixed; right:14px; top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; gap:6px; z-index:100;
+  }
+  .dot {
+    width:4px; height:4px; border-radius:2px;
+    background:rgba(255,255,255,.3);
+    transition:all .3s; flex-shrink:0;
+  }
+  .dot.active {
+    background:white; height:16px;
+  }
+
+  /* ── Heart button ────────────────────────────────────── */
+  #heart-btn {
+    position:fixed; bottom:2.5rem; right:1.5rem; z-index:200;
+    background:rgba(0,0,0,.5); border:none;
+    width:56px; height:56px; border-radius:50%;
+    font-size:1.8rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    backdrop-filter:blur(8px);
+    border:1.5px solid rgba(255,255,255,.15);
+    transition:transform .15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #heart-btn:active { transform:scale(.88); }
+  #heart-btn.liked { animation:heartPop .3s ease; }
+  @keyframes heartPop {
+    0%  { transform:scale(1); }
+    50% { transform:scale(1.35); }
+    100%{ transform:scale(1); }
+  }
+
+  /* ── Heart float (locale, feedback visivo immediato) ─── */
+  .local-heart {
+    position:fixed; font-size:1.5rem; pointer-events:none;
+    animation:localFloat 1.2s ease-out forwards; z-index:300;
+  }
+  @keyframes localFloat {
+    0%   { opacity:1; transform:translateY(0) scale(1); }
+    100% { opacity:0; transform:translateY(-120px) scale(.5); }
+  }
+
+  /* ── Tracking badge (debug, visibile solo in DEV) ────── */
+  #track-badge {
+    display:none; /* attiva in dev: display:block */
+    position:fixed; top:10px; left:10px; z-index:999;
+    background:rgba(0,0,0,.7); color:#0f0; font-size:.6rem;
+    font-family:monospace; padding:.4rem .6rem; border-radius:6px;
+    max-width:200px; line-height:1.5;
+  }
+
+  /* ── Connessione banner ───────────────────────────────── */
+  #conn-banner {
+    position:fixed; top:0; left:0; right:0; z-index:500;
+    background:#1d4ed8; color:white; text-align:center;
+    padding:.5rem; font-size:.75rem;
+    transform:translateY(-100%); transition:transform .3s;
+  }
+  #conn-banner.show { transform:translateY(0); }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div id="conn-banner">📡 Connessione in corso…</div>
+<div id="reel"></div>
+<div id="dots"></div>
+<button id="heart-btn" onclick="sendHeart(event)">🤍</button>
+<div id="track-badge"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+'use strict';
+
+const CFG     = window.APP_CONFIG;
+const SLIDES  = CFG.slides;
+const N       = SLIDES.length;
+
+// ═══════════════════════════════════════════════════════════
+// SUPABASE
+// ═══════════════════════════════════════════════════════════
+const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
+
+// ═══════════════════════════════════════════════════════════
+// SESSION
+// ═══════════════════════════════════════════════════════════
+const SESSION_ID = crypto.randomUUID();
+
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (/Edg\//i.test(ua))    return 'Edge';
+  if (/OPR\//i.test(ua))    return 'Opera';
+  if (/Samsung/i.test(ua))  return 'Samsung';
+  if (/Chrome/i.test(ua))   return 'Chrome';
+  if (/Firefox/i.test(ua))  return 'Firefox';
+  if (/Safari/i.test(ua))   return 'Safari';
+  return 'Altro';
+}
+function detectOS() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad/i.test(ua)) return 'iOS';
+  if (/Android/i.test(ua))     return 'Android';
+  if (/Windows/i.test(ua))     return 'Windows';
+  if (/Mac/i.test(ua))         return 'macOS';
+  return 'Altro';
+}
+
+const SESSION = {
+  id:         SESSION_ID,
+  browser:    detectBrowser(),
+  os:         detectOS(),
+  is_mobile:  /Mobi|Android|iPhone/i.test(navigator.userAgent),
+  screen_w:   screen.width,
+  screen_h:   screen.height,
+  dpr:        devicePixelRatio || 1,
+  language:   navigator.language || 'N/D',
+  timezone:   Intl.DateTimeFormat().resolvedOptions().timeZone || 'N/D',
+  conn_type:  navigator.connection?.effectiveType || 'N/D',
+};
+
+async function initSession() {
+  await sb.from('sessions').insert(SESSION);
+}
+
+// Chiudi sessione alla fine
+window.addEventListener('beforeunload', () => {
+  const totalMs = Date.now() - sessionStart;
+  navigator.sendBeacon('/api/noop', JSON.stringify({ // fallback silenzioso
+    session_id: SESSION_ID, total_ms: totalMs
+  }));
+  // Update via Supabase (best-effort)
+  sb.from('sessions').update({ ended_at: new Date().toISOString(), total_ms: totalMs })
+    .eq('id', SESSION_ID);
+});
+
+const sessionStart = Date.now();
+
+// ═══════════════════════════════════════════════════════════
+// REEL RENDERING
+// ═══════════════════════════════════════════════════════════
+const reelEl   = document.getElementById('reel');
+const dotsEl   = document.getElementById('dots');
+
+function renderSlides() {
+  SLIDES.forEach((slide, i) => {
+    const div = document.createElement('div');
+    div.className = 'slide';
+    div.dataset.index = i;
+    div.style.top = (i * 100) + 'dvh';
+
+    if (slide.type === 'image') {
+      const img = document.createElement('img');
+      img.className = 'slide-image';
+      img.src = slide.src;
+      img.alt = slide.label || '';
+      img.draggable = false;
+      div.appendChild(img);
+    } else {
+      // Text slide
+      div.style.background = slide.bg || '#0d0d0d';
+      div.innerHTML = `
+        <div class="slide-text">
+          ${slide.eyebrow ? `<div class="slide-eyebrow" style="color:${slide.accent||'#fff'}">${slide.eyebrow}</div>` : ''}
+          <div class="slide-title" style="color:${slide.accent||'#fff'}">${(slide.title||'').replace(/\n/g,'<br>')}</div>
+          ${slide.body ? `<div class="slide-body">${slide.body}</div>` : ''}
+        </div>
+        ${slide.footer ? `<div class="slide-footer">${slide.footer}</div>` : ''}
+      `;
+    }
+    reelEl.appendChild(div);
+
+    // Dot
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    dot.dataset.index = i;
+    dotsEl.appendChild(dot);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SCROLL ENGINE
+// ═══════════════════════════════════════════════════════════
+let currentIndex = 0;
+let isAnimating = false;
+
+function goTo(index, animate = true) {
+  const newIndex = ((index % N) + N) % N;
+  const prev = currentIndex;
+  currentIndex = newIndex;
+
+  if (!animate) {
+    reelEl.style.transition = 'none';
+  } else {
+    reelEl.style.transition = 'transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94)';
+    isAnimating = true;
+    setTimeout(() => { isAnimating = false; }, 400);
+  }
+
+  reelEl.style.transform = `translateY(${-currentIndex * 100}dvh)`;
+
+  // Update dots
+  document.querySelectorAll('.dot').forEach(d => {
+    d.classList.toggle('active', parseInt(d.dataset.index) === currentIndex);
+  });
+
+  // Tracking
+  if (prev !== currentIndex) onSlideLeave(prev);
+  onSlideEnter(currentIndex);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOUCH TRACKING
+// ═══════════════════════════════════════════════════════════
+let touchStartY  = 0;
+let touchStartX  = 0;
+let touchStartT  = 0;
+let isDragging   = false;
+let dragOffset   = 0;
+
+// Tracking per slide corrente
+const slideTimers = {};  // { index: { enterAt, dwell, pauses, touches: [] } }
+let pauseTimer = null;
+let pauseStart = null;
+
+function onSlideEnter(idx) {
+  if (!slideTimers[idx]) {
+    slideTimers[idx] = { enterAt: Date.now(), dwell: 0, pauses: [], touches: [], revisits: 0 };
+  } else {
+    slideTimers[idx].revisits++;
+    slideTimers[idx].enterAt = Date.now(); // re-enter
+  }
+  // Start pause detection (≥2s fermo = vera attenzione)
+  clearTimeout(pauseTimer);
+  pauseTimer = setTimeout(() => {
+    pauseStart = Date.now();
+  }, 2000);
+}
+
+function onSlideLeave(idx) {
+  if (!slideTimers[idx]) return;
+  const t = slideTimers[idx];
+  const now = Date.now();
+  const dwell = now - t.enterAt;
+  t.dwell += dwell;
+
+  // Chiudi pausa se aperta
+  if (pauseStart) {
+    t.pauses.push(now - pauseStart);
+    pauseStart = null;
+  }
+  clearTimeout(pauseTimer);
+
+  // Calcola touch side
+  const avgX = t.touches.length
+    ? t.touches.reduce((s, tx) => s + tx, 0) / t.touches.length
+    : 0.5;
+  const side = avgX < 0.35 ? 'left' : avgX > 0.65 ? 'right' : 'center';
+
+  // Salva view su Supabase (async, non blocca)
+  sb.from('image_views').insert({
+    session_id:    SESSION_ID,
+    image_index:   idx,
+    image_label:   SLIDES[idx]?.label || String(idx),
+    dwell_ms:      Math.round(t.dwell),
+    enter_hour:    new Date(t.enterAt).getHours(),
+    max_pause_ms:  t.pauses.length ? Math.max(...t.pauses) : 0,
+    touch_side:    side,
+    touch_x_avg:   parseFloat(avgX.toFixed(3)),
+    revisit_count: t.revisits,
+  });
+
+  updateDebug(idx, t.dwell, side, avgX);
+}
+
+document.addEventListener('touchstart', (e) => {
+  if (isAnimating) return;
+  const touch = e.touches[0];
+  touchStartY = touch.clientY;
+  touchStartX = touch.clientX;
+  touchStartT = Date.now();
+  isDragging  = true;
+  dragOffset  = 0;
+
+  // Registra X per hand detection
+  const xPct = touch.clientX / window.innerWidth;
+  if (!slideTimers[currentIndex]) slideTimers[currentIndex] = { enterAt: Date.now(), dwell: 0, pauses: [], touches: [], revisits: 0 };
+  slideTimers[currentIndex].touches.push(xPct);
+
+  // Interrompi pausa timer durante il movimento
+  clearTimeout(pauseTimer);
+  if (pauseStart) {
+    const pauseDur = Date.now() - pauseStart;
+    if (slideTimers[currentIndex]) slideTimers[currentIndex].pauses.push(pauseDur);
+    pauseStart = null;
+  }
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (!isDragging) return;
+  const dy = touchStartY - e.touches[0].clientY;
+  dragOffset = dy;
+  // Trascina il reel in tempo reale
+  reelEl.style.transition = 'none';
+  reelEl.style.transform = `translateY(calc(${-currentIndex * 100}dvh - ${dy}px))`;
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+  if (!isDragging) return;
+  isDragging = false;
+
+  const touch = e.changedTouches[0];
+  const dy  = touchStartY - touch.clientY;
+  const dt  = Date.now() - touchStartT;
+  const vel = dy / dt; // px/ms (positivo = swipe up = slide successiva)
+
+  const SWIPE_THRESHOLD = 60;  // px
+  const VEL_THRESHOLD   = 0.25; // px/ms
+
+  let nextIndex = currentIndex;
+
+  if (Math.abs(dy) > SWIPE_THRESHOLD || Math.abs(vel) > VEL_THRESHOLD) {
+    nextIndex = dy > 0 ? currentIndex + 1 : currentIndex - 1;
+
+    // Registra scroll event
+    const dir = dy > 0 ? 'next' : 'prev';
+    sb.from('scroll_events').insert({
+      session_id:  SESSION_ID,
+      from_index:  currentIndex,
+      to_index:    ((nextIndex % N) + N) % N,
+      direction:   dir,
+      velocity:    parseFloat(vel.toFixed(4)),
+      duration_ms: dt,
+      touch_x_pct: parseFloat((touchStartX / window.innerWidth).toFixed(3)),
+    });
+  }
+
+  goTo(nextIndex);
+
+  // Riavvia pausa timer sulla nuova slide
+  clearTimeout(pauseTimer);
+  pauseTimer = setTimeout(() => { pauseStart = Date.now(); }, 2000);
+}, { passive: true });
+
+// Scroll da mouse (desktop testing)
+document.addEventListener('wheel', (e) => {
+  if (isAnimating) return;
+  if (e.deltaY > 40) goTo(currentIndex + 1);
+  else if (e.deltaY < -40) goTo(currentIndex - 1);
+}, { passive: true });
+
+// ═══════════════════════════════════════════════════════════
+// HEARTS
+// ═══════════════════════════════════════════════════════════
+const HEART_COOLDOWN = 2000; // ms tra un like e l'altro per stessa slide
+const lastHeartPerSlide = {};
+
+async function sendHeart(e) {
+  const now = Date.now();
+  if (lastHeartPerSlide[currentIndex] && now - lastHeartPerSlide[currentIndex] < HEART_COOLDOWN) return;
+  lastHeartPerSlide[currentIndex] = now;
+
+  // Feedback visivo immediato
+  const btn = document.getElementById('heart-btn');
+  btn.textContent = '❤️';
+  btn.classList.add('liked');
+  setTimeout(() => { btn.classList.remove('liked'); btn.textContent = '🤍'; }, 500);
+
+  // Float heart locale
+  const fl = document.createElement('div');
+  fl.className = 'local-heart';
+  fl.textContent = '❤️';
+  fl.style.right = '1.5rem';
+  fl.style.bottom = '4rem';
+  document.body.appendChild(fl);
+  fl.addEventListener('animationend', () => fl.remove());
+
+  // Touch position per hand analysis
+  const xPct = e?.touches?.[0]
+    ? e.touches[0].clientX / window.innerWidth
+    : (e?.clientX ? e.clientX / window.innerWidth : 0.5);
+
+  // Salva su Supabase (triggera realtime su index.html)
+  sb.from('hearts').insert({
+    session_id:  SESSION_ID,
+    image_index: currentIndex,
+    image_label: SLIDES[currentIndex]?.label || String(currentIndex),
+    touch_x_pct: parseFloat(xPct.toFixed(3)),
+    hour_of_day: new Date().getHours(),
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// DEBUG (solo sviluppo)
+// ═══════════════════════════════════════════════════════════
+function updateDebug(idx, dwell, side, avgX) {
+  const el = document.getElementById('track-badge');
+  if (el.style.display === 'none') return;
+  el.innerHTML = `Slide: ${idx}<br>Tempo: ${(dwell/1000).toFixed(1)}s<br>Mano: ${side}<br>X avg: ${avgX.toFixed(2)}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+async function init() {
+  document.getElementById('conn-banner').classList.add('show');
+  await initSession();
+  document.getElementById('conn-banner').classList.remove('show');
+
+  renderSlides();
+  goTo(0, false);
+
+  // Preload immagini
+  SLIDES.filter(s => s.type === 'image').forEach(s => {
+    const img = new Image(); img.src = s.src;
+  });
+}
+
+init();
+</script>
+</body>
+</html>

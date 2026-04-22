@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colonizzazione Digitale — Schermo Principale</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+
+  :root {
+    --bg:#05070a; --blue:#38bdf8; --red:#ef4444; --text:#f3f4f6;
+    --card:#111827; --border:#1f2937;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body { height:100%; overflow:hidden; }
+
+  body {
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    overflow:hidden;
+  }
+
+  /* ── Heart overlay (sopra tutto) ─────────────────────── */
+  #heart-overlay {
+    position:fixed; inset:0; pointer-events:none; z-index:9999;
+    overflow:hidden;
+  }
+
+  .heart-particle {
+    position:absolute;
+    bottom:-60px;
+    font-size:2rem;
+    animation: floatUp 2.5s ease-out forwards;
+    user-select:none;
+    pointer-events:none;
+  }
+
+  @keyframes floatUp {
+    0%   { transform: translateY(0) scale(1) rotate(0deg);   opacity:1; }
+    60%  { opacity:1; }
+    100% { transform: translateY(-70vh) scale(0.4) rotate(20deg); opacity:0; }
+  }
+
+  /* ── Settings Panel ──────────────────────────────────── */
+  #settings-btn {
+    position:fixed; bottom:1.5rem; right:1.5rem; z-index:1000;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15);
+    border-radius:50%; width:44px; height:44px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:1.2rem; transition:all .2s;
+    backdrop-filter:blur(8px);
+  }
+  #settings-btn:hover { background:rgba(255,255,255,.15); }
+
+  #settings-panel {
+    position:fixed; bottom:4.5rem; right:1.5rem; z-index:1000;
+    background:#111827; border:1px solid #374151;
+    border-radius:16px; padding:1.2rem; width:260px;
+    display:none; flex-direction:column; gap:.8rem;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  #settings-panel.open { display:flex; }
+
+  .settings-title {
+    font-size:.7rem; font-weight:600; letter-spacing:.1em;
+    text-transform:uppercase; color:#6b7280; margin-bottom:.2rem;
+  }
+
+  .settings-row {
+    display:flex; justify-content:space-between; align-items:center;
+    gap:.5rem;
+  }
+  .settings-label { font-size:.85rem; color:#d1d5db; }
+
+  .toggle {
+    position:relative; width:42px; height:24px; cursor:pointer;
+  }
+  .toggle input { opacity:0; width:0; height:0; }
+  .toggle-slider {
+    position:absolute; inset:0;
+    background:#374151; border-radius:12px; transition:.3s;
+  }
+  .toggle-slider::before {
+    content:''; position:absolute;
+    width:18px; height:18px; left:3px; top:3px;
+    background:white; border-radius:50%; transition:.3s;
+  }
+  .toggle input:checked + .toggle-slider { background:var(--blue); }
+  .toggle input:checked + .toggle-slider::before { transform:translateX(18px); }
+
+  select.settings-select {
+    background:#1f2937; border:1px solid #374151; color:var(--text);
+    padding:.3rem .6rem; border-radius:6px; font-size:.8rem; cursor:pointer;
+  }
+
+  /* ── Analytics link (nascosto) ───────────────────────── */
+  #analytics-hint {
+    position:fixed; bottom:1.5rem; left:1.5rem; z-index:1000;
+    font-size:.65rem; color:#1f2937; cursor:pointer;
+    transition:color .3s; user-select:none;
+  }
+  #analytics-hint:hover { color:#374151; }
+
+  /* ── Viewers counter ─────────────────────────────────── */
+  #viewers-badge {
+    position:fixed; top:1.2rem; right:1.5rem; z-index:1000;
+    background:rgba(17,24,39,.8); border:1px solid #374151;
+    border-radius:20px; padding:.35rem .9rem;
+    font-size:.75rem; color:#9ca3af;
+    display:flex; align-items:center; gap:.5rem;
+    backdrop-filter:blur(8px);
+  }
+  .viewers-dot {
+    width:7px; height:7px; background:#22c55e; border-radius:50%;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+  /* ── QR Section ──────────────────────────────────────── */
+  #qr-section {
+    height:100vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at center, #0d1117 0%, var(--bg) 70%);
+    position:relative;
+  }
+
+  .qr-eyebrow {
+    font-size:.8rem; letter-spacing:.2em; text-transform:uppercase;
+    color:#6b7280; margin-bottom:2rem;
+  }
+
+  #qr-container {
+    background:white; padding:16px; border-radius:12px;
+    box-shadow:0 0 60px rgba(56,189,248,.2);
+    margin-bottom:2rem;
+  }
+
+  .qr-url {
+    font-size:1rem; color:var(--blue); font-weight:600;
+    letter-spacing:.02em; margin-bottom:.5rem; text-align:center;
+  }
+
+  .qr-sub {
+    font-size:.8rem; color:#6b7280; text-align:center;
+    margin-bottom:2rem;
+  }
+
+  #start-btn {
+    background:var(--blue); color:#000;
+    border:none; padding:1rem 2.5rem;
+    border-radius:100px; font-weight:700; font-size:1rem;
+    cursor:pointer; transition:all .2s;
+    letter-spacing:.02em;
+  }
+  #start-btn:hover { background:#7dd3fc; transform:scale(1.03); }
+
+  /* ── Presentation wrapper ────────────────────────────── */
+  #presentation-wrapper {
+    display:none;
+    height:100vh;
+    overflow-y:auto;
+    scroll-behavior:smooth;
+    scrollbar-width:none;
+  }
+  #presentation-wrapper::-webkit-scrollbar { display:none; }
+  #presentation-wrapper.active { display:block; }
+
+  /* ── Presentation styles (inherited from presentazione.html) ── */
+  #presentation-wrapper section {
+    min-height:100vh; display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    padding:60px 20px; border-bottom:1px solid #1f2937; text-align:center;
+  }
+  #presentation-wrapper .container { max-width:900px; width:100%; }
+  #presentation-wrapper h1 {
+    font-size:4rem;
+    background:linear-gradient(135deg,#38bdf8 0%,#818cf8 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    font-weight:900;
+  }
+  #presentation-wrapper h2 { font-size:2.5rem; color:var(--blue); margin-bottom:20px; }
+  #presentation-wrapper .box {
+    background:var(--card); padding:30px; border-radius:20px;
+    border:1px solid #374151; margin:25px 0; text-align:left;
+  }
+  #presentation-wrapper .box-red { border-left:6px solid var(--red); }
+  #presentation-wrapper .timestamp {
+    display:inline-block; background:#ff0000; color:white;
+    padding:5px 12px; border-radius:5px; text-decoration:none;
+    font-weight:bold; margin-bottom:10px; font-size:.9rem;
+  }
+  #presentation-wrapper ul { list-style:none; padding:0; font-size:1.2rem; }
+  #presentation-wrapper li { margin-bottom:10px; }
+  #presentation-wrapper li::before { content:"⚡"; margin-right:10px; }
+  #presentation-wrapper .highlight-red { color:var(--red); font-weight:bold; }
+</style>
+</head>
+<body>
+
+<!-- Heart overlay -->
+<div id="heart-overlay"></div>
+
+<!-- Viewers badge -->
+<div id="viewers-badge">
+  <div class="viewers-dot"></div>
+  <span id="viewers-count">0</span> connessi
+</div>
+
+<!-- Settings button -->
+<div id="settings-btn" onclick="toggleSettings()" title="Impostazioni">⚙️</div>
+<div id="settings-panel">
+  <div class="settings-title">Impostazioni Cuori</div>
+
+  <div class="settings-row">
+    <span class="settings-label">Cuori attivi</span>
+    <label class="toggle">
+      <input type="checkbox" id="hearts-enabled" checked onchange="saveSettings()">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+
+  <div class="settings-row">
+    <span class="settings-label">Intervallo minimo</span>
+    <select class="settings-select" id="heart-interval" onchange="saveSettings()">
+      <option value="0">Nessuno</option>
+      <option value="5000">5 sec</option>
+      <option value="10000" selected>10 sec</option>
+      <option value="30000">30 sec</option>
+      <option value="60000">1 min</option>
+    </select>
+  </div>
+
+  <div class="settings-row">
+    <span class="settings-label">Volume suono</span>
+    <select class="settings-select" id="heart-volume" onchange="saveSettings()">
+      <option value="0">Muto</option>
+      <option value="0.15">Basso</option>
+      <option value="0.3" selected>Medio</option>
+      <option value="0.6">Alto</option>
+    </select>
+  </div>
+</div>
+
+<!-- Analytics hint (nascosto) -->
+<div id="analytics-hint" onclick="goToAnalytics()" title="⬡">◆</div>
+
+<!-- QR Section -->
+<div id="qr-section">
+  <div class="qr-eyebrow">Scansiona con il telefono per partecipare</div>
+  <div id="qr-container"></div>
+  <div class="qr-url" id="reel-url">Caricamento…</div>
+  <div class="qr-sub">Il tuo telefono diventerà parte dell'esperimento.</div>
+  <button id="start-btn" onclick="startPresentation()">▶ Inizia la presentazione</button>
+</div>
+
+<!-- Presentation -->
+<div id="presentation-wrapper">
+
+  <section>
+    <h1>CHI POSSIEDE LA TUA FACCIA?</h1>
+    <p>La colonizzazione dell'identità digitale</p>
+  </section>
+
+  <section>
+    <h2>1. L'illusione del Gratis</h2>
+    <div class="box">
+      <p>Se non paghi per il prodotto, <b>il prodotto sei tu.</b></p>
+      <ul>
+        <li>Il "Mismatch Evolutivo": Cervelli antichi vs Algoritmi moderni.</li>
+        <li>La Dopamina a basso costo: Perché non riesci a staccarti?</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Cos'è la Colonizzazione?</h2>
+    <div class="box">
+      <p>Occupare il tuo spazio mentale per estrarre dati.</p>
+      <ul>
+        <li><b>Surplus comportamentale:</b> monitorano come ti muovi, non solo cosa scrivi.</li>
+        <li><b>Certezza:</b> L'algoritmo non indovina, lui decide cosa farai dopo.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <a href="https://www.youtube.com/watch?v=CGW4kEVMNPU&t=260s" target="_blank" class="timestamp">Video [04:20]</a>
+    <h2>3. La China Scivolosa</h2>
+    <div class="box box-red">
+      <p>Inizia con "Proteggiamo i bambini"... dove finisce?</p>
+      <p>Una volta creata l'infrastruttura di controllo, chi decide cosa è vietato domani?</p>
+    </div>
+  </section>
+
+  <section>
+    <a href="https://www.youtube.com/watch?v=CGW4kEVMNPU&t=1230s" target="_blank" class="timestamp">Video [20:30]</a>
+    <h2>4. Il Dato è Eterno</h2>
+    <div class="box">
+      <p><b>Lezione dalla Storia: L'Olanda (1940)</b></p>
+      <p>Dati nati per scopi civili e "buoni" (censimento) sono diventati uno strumento di sterminio in mano ai nazisti.</p>
+      <ul>
+        <li><span class="highlight-red">Efficienza letale:</span> Grazie a quegli archivi, l'Olanda ebbe la più alta percentuale di deportazioni.</li>
+        <li><span class="highlight-red">L'avvertimento:</span> I dati che regali oggi non hanno data di scadenza. Chi li userà tra 20 o 50 anni?</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <a href="https://www.youtube.com/watch?v=CGW4kEVMNPU&t=2440s" target="_blank" class="timestamp">Video [40:40]</a>
+    <h2>5. Chat Control e Biometria</h2>
+    <div class="box box-red">
+      <p>Analizzare le foto prima dell'invio. La tua faccia è la tua password definitiva.</p>
+      <ul>
+        <li>Se ti rubano la password, la cambi. Se ti rubano la faccia?</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>6. Manuale di Resistenza</h2>
+    <div class="box">
+      <ul>
+        <li><b>StopNCII.org:</b> Proteggi la tua intimità.</li>
+        <li><b>Igiene Digitale:</b> Spegni le notifiche dei bot.</li>
+        <li><b>Permesso Negato:</b> Non sei mai solo/a.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<!-- QR code library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Config -->
+<script src="config.js"></script>
+
+<script>
+'use strict';
+
+const CFG = window.APP_CONFIG;
+const supabase = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
+
+// ── QR Code ──────────────────────────────────────────────────
+const reelUrl = CFG.siteUrl.replace(/\/$/, '') + '/reel.html';
+document.getElementById('reel-url').textContent = reelUrl;
+new QRCode(document.getElementById('qr-container'), {
+  text: reelUrl,
+  width: 240, height: 240,
+  colorDark: '#000', colorLight: '#fff',
+  correctLevel: QRCode.CorrectLevel.M,
+});
+
+// ── Presentation toggle ───────────────────────────────────────
+function startPresentation() {
+  document.getElementById('qr-section').style.display = 'none';
+  document.getElementById('presentation-wrapper').classList.add('active');
+}
+
+// ── Settings ─────────────────────────────────────────────────
+let heartsEnabled = true;
+let heartInterval = 10000;
+let heartVolume = 0.3;
+let lastHeartTime = 0;
+
+function toggleSettings() {
+  document.getElementById('settings-panel').classList.toggle('open');
+}
+
+function saveSettings() {
+  heartsEnabled = document.getElementById('hearts-enabled').checked;
+  heartInterval = parseInt(document.getElementById('heart-interval').value);
+  heartVolume   = parseFloat(document.getElementById('heart-volume').value);
+}
+
+// Close panel when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#settings-btn') && !e.target.closest('#settings-panel')) {
+    document.getElementById('settings-panel').classList.remove('open');
+  }
+});
+
+// ── Analytics link ────────────────────────────────────────────
+function goToAnalytics() {
+  window.open(`analytics.html#${CFG.analyticsToken}`, '_blank');
+}
+
+// ── Heart animation ───────────────────────────────────────────
+const HEART_EMOJIS = ['❤️','🧡','💛','💚','💙','💜','🩷','🤍'];
+
+function showHeartAnimation(count = 1) {
+  if (!heartsEnabled) return;
+  const now = Date.now();
+  if (heartInterval > 0 && now - lastHeartTime < heartInterval) return;
+  lastHeartTime = now;
+
+  const overlay = document.getElementById('heart-overlay');
+  const burst = Math.min(count, 8);
+  for (let i = 0; i < burst; i++) {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'heart-particle';
+      el.textContent = HEART_EMOJIS[Math.floor(Math.random() * HEART_EMOJIS.length)];
+      el.style.left = (15 + Math.random() * 70) + '%';
+      el.style.fontSize = (1.5 + Math.random() * 2) + 'rem';
+      el.style.animationDuration = (2 + Math.random() * 1.5) + 's';
+      overlay.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }, i * 120);
+  }
+  playHeartSound();
+}
+
+// ── Heart sound (Web Audio API) ───────────────────────────────
+let audioCtx = null;
+
+function playHeartSound() {
+  if (heartVolume === 0) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const osc  = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(660, audioCtx.currentTime + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15);
+
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(heartVolume, audioCtx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.4);
+  } catch(e) {}
+}
+
+// ── Realtime subscription ─────────────────────────────────────
+let viewerCount = 0;
+
+supabase
+  .channel('live')
+  .on('postgres_changes', {
+    event: 'INSERT', schema: 'public', table: 'hearts'
+  }, () => {
+    showHeartAnimation(3);
+  })
+  .on('postgres_changes', {
+    event: 'INSERT', schema: 'public', table: 'sessions'
+  }, () => {
+    viewerCount++;
+    document.getElementById('viewers-count').textContent = viewerCount;
+  })
+  .subscribe();
+
+// Inizializza AudioContext al primo click (requisito browser)
+document.addEventListener('click', () => {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}, { once: true });
+
+// Carica conteggio sessioni attive
+async function loadViewerCount() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const { count } = await supabase
+    .from('sessions')
+    .select('*', { count: 'exact', head: true })
+    .gte('created_at', today.toISOString());
+  if (count) {
+    viewerCount = count;
+    document.getElementById('viewers-count').textContent = viewerCount;
+  }
+}
+loadViewerCount();
+</script>
+</body>
+</html>

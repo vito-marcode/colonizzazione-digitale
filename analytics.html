@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analytics — Colonizzazione Digitale</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;700;900&display=swap');
+
+  :root {
+    --bg:#05070a; --surface:#0d1117; --card:#111827;
+    --blue:#38bdf8; --red:#ef4444; --green:#22c55e;
+    --yellow:#fbbf24; --purple:#a78bfa;
+    --text:#f3f4f6; --muted:#6b7280; --border:#1f2937;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* ── Auth wall ────────────────────────────────────────── */
+  #auth-wall {
+    min-height:100vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1rem;
+  }
+  .auth-title { font-size:3rem; font-weight:900; color:var(--red); }
+  .auth-sub   { color:var(--muted); font-size:1rem; }
+
+  /* ── Layout ───────────────────────────────────────────── */
+  #dashboard { display:none; padding:2rem; max-width:1300px; margin:0 auto; }
+  #dashboard.visible { display:block; }
+
+  header {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:2.5rem; padding-bottom:1.5rem;
+    border-bottom:1px solid var(--border);
+  }
+  .header-title { font-size:1.8rem; font-weight:900; }
+  .header-title span { color:var(--red); }
+  .header-sub { font-size:.8rem; color:var(--muted); font-family:'Space Mono',monospace; }
+
+  .refresh-btn {
+    background:var(--card); border:1px solid var(--border);
+    color:var(--text); padding:.5rem 1.2rem; border-radius:8px;
+    cursor:pointer; font-size:.85rem; transition:all .2s;
+  }
+  .refresh-btn:hover { border-color:var(--blue); color:var(--blue); }
+
+  /* ── Stat cards ───────────────────────────────────────── */
+  .stat-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:1rem; margin-bottom:2rem;
+  }
+  .stat-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:1.2rem;
+    position:relative; overflow:hidden;
+  }
+  .stat-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  }
+  .stat-card.blue::before   { background:var(--blue); }
+  .stat-card.red::before    { background:var(--red); }
+  .stat-card.green::before  { background:var(--green); }
+  .stat-card.yellow::before { background:var(--yellow); }
+  .stat-card.purple::before { background:var(--purple); }
+
+  .stat-label { font-size:.65rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:.5rem; }
+  .stat-value { font-size:2.2rem; font-weight:900; line-height:1; }
+  .stat-sub   { font-size:.7rem; color:var(--muted); margin-top:.3rem; }
+
+  /* ── Section ──────────────────────────────────────────── */
+  .section { margin-bottom:2.5rem; }
+  .section-title {
+    font-size:.7rem; letter-spacing:.15em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:1rem;
+    display:flex; align-items:center; gap:.5rem;
+  }
+  .section-title::before {
+    content:''; width:8px; height:8px; background:var(--blue);
+    border-radius:50%; flex-shrink:0;
+  }
+
+  /* ── Charts grid ──────────────────────────────────────── */
+  .charts-grid {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:1.5rem;
+  }
+  .chart-card {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:1.5rem;
+  }
+  .chart-title {
+    font-size:.75rem; font-weight:600; color:var(--muted);
+    letter-spacing:.08em; text-transform:uppercase; margin-bottom:1.2rem;
+  }
+
+  /* ── Bar chart ────────────────────────────────────────── */
+  .bar-list { display:flex; flex-direction:column; gap:.6rem; }
+  .bar-item { display:flex; align-items:center; gap:.8rem; }
+  .bar-name { font-size:.75rem; color:var(--muted); width:100px; flex-shrink:0; text-align:right; font-family:'Space Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bar-wrap { flex:1; height:22px; background:rgba(255,255,255,.05); border-radius:4px; overflow:hidden; position:relative; }
+  .bar-fill { height:100%; border-radius:4px; transition:width .8s cubic-bezier(.34,1.56,.64,1); display:flex; align-items:center; justify-content:flex-end; padding-right:.4rem; }
+  .bar-val  { font-size:.6rem; font-family:'Space Mono',monospace; color:rgba(255,255,255,.8); }
+
+  /* ── Slide heatmap ────────────────────────────────────── */
+  .slide-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.8rem; }
+  .slide-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:1rem; text-align:center;
+    transition:border-color .2s;
+  }
+  .slide-card:hover { border-color:var(--blue); }
+  .slide-index { font-size:.6rem; color:var(--muted); margin-bottom:.3rem; font-family:'Space Mono',monospace; }
+  .slide-label { font-size:.8rem; font-weight:600; margin-bottom:.8rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .slide-dwell { font-size:1.6rem; font-weight:900; }
+  .slide-dwell-label { font-size:.6rem; color:var(--muted); margin-bottom:.5rem; }
+  .slide-hearts { font-size:.8rem; }
+  .slide-heat-bar { height:4px; border-radius:2px; margin-top:.6rem; background:linear-gradient(90deg,var(--blue),var(--red)); }
+
+  /* ── Hand detection chart ─────────────────────────────── */
+  .hand-viz {
+    display:flex; align-items:center; justify-content:center; gap:2rem;
+    padding:1rem;
+  }
+  .hand-side { text-align:center; }
+  .hand-icon { font-size:2.5rem; }
+  .hand-pct  { font-size:1.8rem; font-weight:900; }
+  .hand-lbl  { font-size:.7rem; color:var(--muted); }
+  .hand-bar-wrap { flex:1; height:12px; background:rgba(255,255,255,.05); border-radius:6px; overflow:hidden; display:flex; }
+  .hand-left-fill  { background:var(--blue);   border-radius:6px 0 0 6px; }
+  .hand-right-fill { background:var(--purple); border-radius:0 6px 6px 0; }
+  .hand-center-fill{ background:var(--muted); }
+
+  /* ── Timeline ─────────────────────────────────────────── */
+  .timeline { display:flex; align-items:flex-end; gap:3px; height:80px; }
+  .timeline-bar {
+    flex:1; min-width:8px;
+    background:var(--blue); border-radius:3px 3px 0 0;
+    opacity:.7; transition:opacity .2s; cursor:default;
+    position:relative;
+  }
+  .timeline-bar:hover { opacity:1; }
+  .timeline-bar::after {
+    content:attr(data-tip);
+    position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%);
+    background:#000; color:#fff; font-size:.55rem; padding:.2rem .4rem; border-radius:3px;
+    white-space:nowrap; display:none;
+  }
+  .timeline-bar:hover::after { display:block; }
+  .timeline-labels {
+    display:flex; justify-content:space-between;
+    font-size:.55rem; color:var(--muted); font-family:'Space Mono',monospace; margin-top:.3rem;
+  }
+
+  /* ── Sessions table ───────────────────────────────────── */
+  .sessions-table { width:100%; border-collapse:collapse; font-size:.75rem; }
+  .sessions-table th {
+    text-align:left; padding:.5rem .7rem;
+    border-bottom:1px solid var(--border);
+    color:var(--muted); font-size:.65rem;
+    letter-spacing:.08em; text-transform:uppercase; font-weight:500;
+  }
+  .sessions-table td {
+    padding:.5rem .7rem;
+    border-bottom:1px solid rgba(31,41,55,.5);
+    font-family:'Space Mono',monospace;
+  }
+  .sessions-table tr:hover td { background:rgba(56,189,248,.04); }
+  .badge {
+    display:inline-block; padding:.15rem .5rem; border-radius:20px;
+    font-size:.6rem; font-weight:600;
+  }
+  .badge-mobile { background:rgba(167,139,250,.15); color:var(--purple); }
+  .badge-desktop{ background:rgba(56,189,248,.15); color:var(--blue); }
+
+  /* ── Reveal banner ─────────────────────────────────────── */
+  .reveal-banner {
+    background:linear-gradient(135deg,#1e1b4b,#312e81);
+    border:1px solid #4338ca; border-radius:12px;
+    padding:1.5rem; margin-bottom:2rem; text-align:center;
+  }
+  .reveal-banner h2 { font-size:1.4rem; color:var(--purple); margin-bottom:.5rem; }
+  .reveal-banner p  { color:#a5b4fc; font-size:.9rem; line-height:1.5; }
+
+  /* ── Scroll stats ─────────────────────────────────────── */
+  .scroll-stat {
+    background:var(--surface); border-radius:8px;
+    padding:.8rem 1rem; display:flex; justify-content:space-between; align-items:center;
+  }
+  .scroll-stat-label { font-size:.75rem; color:var(--muted); }
+  .scroll-stat-val   { font-size:1.1rem; font-weight:700; color:var(--blue); font-family:'Space Mono',monospace; }
+
+  .loading { text-align:center; padding:3rem; color:var(--muted); font-family:'Space Mono',monospace; }
+
+  .empty { color:var(--muted); font-size:.8rem; text-align:center; padding:2rem; }
+</style>
+</head>
+<body>
+
+<!-- Auth wall -->
+<div id="auth-wall">
+  <div class="auth-title">🔒</div>
+  <div style="font-size:1.5rem;font-weight:900">Accesso Analytics</div>
+  <div class="auth-sub">Inserisci il codice rivelato dal professore</div>
+  <input type="password" id="auth-input" placeholder="codice..." autocomplete="off"
+    style="background:#111827;border:1px solid #374151;color:white;padding:.6rem 1rem;border-radius:8px;font-size:1rem;text-align:center;width:220px;"
+    onkeydown="if(event.key==='Enter')checkAuth()">
+  <button onclick="checkAuth()"
+    style="background:#38bdf8;color:#000;border:none;padding:.6rem 2rem;border-radius:8px;font-weight:700;cursor:pointer;font-size:.9rem;">
+    Accedi
+  </button>
+  <div id="auth-err" style="color:#ef4444;font-size:.8rem;display:none;">Codice errato</div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard">
+
+  <header>
+    <div>
+      <div class="header-title">Analytics — <span>Colonizzazione Digitale</span></div>
+      <div class="header-sub" id="last-updated">Aggiornamento in corso…</div>
+    </div>
+    <button class="refresh-btn" onclick="loadAll()">↺ Aggiorna</button>
+  </header>
+
+  <!-- Reveal banner -->
+  <div class="reveal-banner">
+    <h2>🎭 Quello che l'algoritmo ha visto di voi</h2>
+    <p>Mentre guardavate le slide sul vostro telefono, ogni gesto è stato registrato.<br>
+    Con quale mano tenete il telefono. Quanto vi siete fermati. Cosa vi ha colpito di più.</p>
+  </div>
+
+  <div id="content" class="loading">Caricamento dati…</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="config.js"></script>
+<script>
+'use strict';
+
+const CFG = window.APP_CONFIG;
+const sb  = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
+
+// ── Auth ──────────────────────────────────────────────────────
+function checkAuth() {
+  const input = document.getElementById('auth-input').value.trim();
+  const token = window.location.hash.slice(1) || input;
+  if (token === CFG.analyticsToken || input === CFG.analyticsToken) {
+    document.getElementById('auth-wall').style.display = 'none';
+    document.getElementById('dashboard').classList.add('visible');
+    loadAll();
+    setInterval(loadAll, 30000); // auto-refresh ogni 30s
+  } else {
+    document.getElementById('auth-err').style.display = 'block';
+  }
+}
+
+// Auto-check via URL hash
+if (window.location.hash.slice(1) === CFG.analyticsToken) {
+  document.getElementById('auth-wall').style.display = 'none';
+  document.getElementById('dashboard').classList.add('visible');
+  setInterval(() => {}, 0); // dummy per non bloccare
+}
+
+// ── Load all data ─────────────────────────────────────────────
+async function loadAll() {
+  if (!document.getElementById('dashboard').classList.contains('visible')) return;
+  document.getElementById('last-updated').textContent =
+    'Aggiornato: ' + new Date().toLocaleTimeString('it-IT');
+
+  const [sessions, views, hearts, scrolls] = await Promise.all([
+    sb.from('sessions').select('*').order('created_at', { ascending: false }),
+    sb.from('image_views').select('*'),
+    sb.from('hearts').select('*'),
+    sb.from('scroll_events').select('*'),
+  ]);
+
+  const S = sessions.data || [];
+  const V = views.data    || [];
+  const H = hearts.data   || [];
+  const SC= scrolls.data  || [];
+
+  renderDashboard(S, V, H, SC);
+}
+
+// ── Render ────────────────────────────────────────────────────
+const COLORS = ['#38bdf8','#ef4444','#fbbf24','#a78bfa','#22c55e','#f97316','#ec4899'];
+const SLIDES  = CFG.slides;
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmtMs(ms) {
+  if (!ms) return '0s';
+  if (ms < 1000) return ms + 'ms';
+  if (ms < 60000) return (ms/1000).toFixed(1) + 's';
+  return Math.floor(ms/60000) + 'm ' + Math.round((ms%60000)/1000) + 's';
+}
+
+function renderDashboard(S, V, H, SC) {
+  const totalSessions = S.length;
+  const totalViews    = V.length;
+  const totalHearts   = H.length;
+  const totalScrolls  = SC.length;
+
+  const avgDwell = V.length ? Math.round(V.reduce((s,v)=>s+(v.dwell_ms||0),0)/V.length) : 0;
+  const mobileCount = S.filter(s=>s.is_mobile).length;
+  const avgSession = S.filter(s=>s.total_ms>0).length
+    ? Math.round(S.filter(s=>s.total_ms>0).reduce((s,v)=>s+(v.total_ms||0),0)/S.filter(s=>s.total_ms>0).length)
+    : 0;
+
+  // ── Dwell per slide ────────────────────────────────────────
+  const dwellBySlide = {}; // { idx: { total, count, hearts } }
+  SLIDES.forEach((_,i) => { dwellBySlide[i] = { total:0, count:0, hearts:0 }; });
+  V.forEach(v => {
+    if (!dwellBySlide[v.image_index]) dwellBySlide[v.image_index] = { total:0, count:0, hearts:0 };
+    dwellBySlide[v.image_index].total += (v.dwell_ms||0);
+    dwellBySlide[v.image_index].count++;
+  });
+  H.forEach(h => {
+    if (!dwellBySlide[h.image_index]) dwellBySlide[h.image_index] = { total:0, count:0, hearts:0 };
+    dwellBySlide[h.image_index].hearts++;
+  });
+
+  // ── Hand detection ─────────────────────────────────────────
+  const hands = { left:0, right:0, center:0 };
+  V.filter(v=>v.touch_side).forEach(v => { hands[v.touch_side] = (hands[v.touch_side]||0)+1; });
+  // Anche da scroll events
+  SC.forEach(s => {
+    if (s.touch_x_pct !== null) {
+      const side = s.touch_x_pct < 0.35 ? 'left' : s.touch_x_pct > 0.65 ? 'right' : 'center';
+      hands[side]++;
+    }
+  });
+  const handsTotal = hands.left + hands.right + hands.center || 1;
+
+  // ── Activity by hour ───────────────────────────────────────
+  const byHour = Array(24).fill(0);
+  V.forEach(v => { if (v.enter_hour !== null) byHour[v.enter_hour]++; });
+  H.forEach(h => { if (h.hour_of_day !== null) byHour[h.hour_of_day]++; });
+
+  // ── Scroll stats ───────────────────────────────────────────
+  const fastScrolls = SC.filter(s=>Math.abs(s.velocity||0)>0.5).length;
+  const avgVel = SC.length ? (SC.reduce((s,v)=>s+Math.abs(v.velocity||0),0)/SC.length).toFixed(3) : 0;
+  const prevScrolls = SC.filter(s=>s.direction==='prev').length;
+  const nextScrolls = SC.filter(s=>s.direction==='next').length;
+
+  // ── Build HTML ─────────────────────────────────────────────
+  const maxDwell = Math.max(...Object.values(dwellBySlide).map(d => d.total/Math.max(d.count,1) || 0), 1);
+
+  document.getElementById('content').innerHTML = `
+
+    <!-- KPI -->
+    <div class="stat-grid">
+      <div class="stat-card blue">
+        <div class="stat-label">Spettatori unici</div>
+        <div class="stat-value" style="color:var(--blue)">${totalSessions}</div>
+        <div class="stat-sub">${mobileCount} da mobile</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Cuori totali</div>
+        <div class="stat-value" style="color:var(--red)">${totalHearts} ❤️</div>
+        <div class="stat-sub">media ${totalSessions ? (totalHearts/totalSessions).toFixed(1) : 0} / utente</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Visualizzazioni slide</div>
+        <div class="stat-value" style="color:var(--green)">${totalViews}</div>
+        <div class="stat-sub">media ${fmtMs(avgDwell)} / slide</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">Gesti di scroll</div>
+        <div class="stat-value" style="color:var(--yellow)">${totalScrolls}</div>
+        <div class="stat-sub">${fastScrolls} scroll veloci</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-label">Durata media sessione</div>
+        <div class="stat-value" style="color:var(--purple)">${fmtMs(avgSession)}</div>
+        <div class="stat-sub">per spettatore</div>
+      </div>
+    </div>
+
+    <!-- Slide heatmap -->
+    <div class="section">
+      <div class="section-title">Attenzione per slide — tempo medio + cuori</div>
+      <div class="slide-grid">
+        ${SLIDES.map((slide, i) => {
+          const d = dwellBySlide[i] || { total:0, count:0, hearts:0 };
+          const avg = d.count ? Math.round(d.total / d.count) : 0;
+          const heat = maxDwell > 0 ? avg / maxDwell : 0;
+          const heatColor = heat > 0.7 ? 'var(--red)' : heat > 0.4 ? 'var(--yellow)' : 'var(--blue)';
+          return `<div class="slide-card">
+            <div class="slide-index">Slide ${i+1}</div>
+            <div class="slide-label">${esc(slide.label || String(i))}</div>
+            <div class="slide-dwell" style="color:${heatColor}">${fmtMs(avg)}</div>
+            <div class="slide-dwell-label">tempo medio</div>
+            <div class="slide-hearts">❤️ ${d.hearts}</div>
+            <div class="slide-heat-bar" style="opacity:${0.2+heat*0.8}"></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-grid">
+
+      <!-- Hand detection -->
+      <div class="chart-card">
+        <div class="chart-title">🤚 Rilevamento mano — con quale mano tieni il telefono?</div>
+        <div class="hand-viz">
+          <div class="hand-side">
+            <div class="hand-icon">🤚</div>
+            <div class="hand-pct" style="color:var(--blue)">${Math.round(hands.left/handsTotal*100)}%</div>
+            <div class="hand-lbl">Mano Sinistra</div>
+          </div>
+          <div style="flex:1">
+            <div class="hand-bar-wrap" style="margin-bottom:.4rem">
+              <div class="hand-left-fill" style="width:${hands.left/handsTotal*100}%"></div>
+              <div class="hand-center-fill" style="width:${hands.center/handsTotal*100}%"></div>
+              <div class="hand-right-fill" style="width:${hands.right/handsTotal*100}%"></div>
+            </div>
+            <div style="font-size:.65rem;color:var(--muted);text-align:center;font-family:'Space Mono',monospace">
+              centro: ${Math.round(hands.center/handsTotal*100)}%
+            </div>
+          </div>
+          <div class="hand-side">
+            <div class="hand-icon">🤙</div>
+            <div class="hand-pct" style="color:var(--purple)">${Math.round(hands.right/handsTotal*100)}%</div>
+            <div class="hand-lbl">Mano Destra</div>
+          </div>
+        </div>
+        <p style="font-size:.68rem;color:var(--muted);margin-top:.8rem;line-height:1.5">
+          Rilevato dalla posizione X media dei tocchi sullo schermo.<br>
+          Sinistra (&lt;35%) → mano sinistra. Destra (&gt;65%) → mano destra.
+        </p>
+      </div>
+
+      <!-- Activity by hour -->
+      <div class="chart-card">
+        <div class="chart-title">🕐 Attività per ora del giorno</div>
+        <div class="timeline">
+          ${byHour.map((count, h) => {
+            const max = Math.max(...byHour, 1);
+            const pct = (count / max * 100).toFixed(0);
+            return `<div class="timeline-bar" style="height:${Math.max(4,pct)}%" data-tip="${h}:00 — ${count} interazioni"></div>`;
+          }).join('')}
+        </div>
+        <div class="timeline-labels">
+          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+        </div>
+      </div>
+
+      <!-- Scroll behavior -->
+      <div class="chart-card">
+        <div class="chart-title">📜 Comportamento di scroll</div>
+        <div style="display:flex;flex-direction:column;gap:.6rem">
+          <div class="scroll-stat">
+            <span class="scroll-stat-label">↓ Scorrimenti in avanti</span>
+            <span class="scroll-stat-val">${nextScrolls}</span>
+          </div>
+          <div class="scroll-stat">
+            <span class="scroll-stat-label">↑ Scorrimenti indietro</span>
+            <span class="scroll-stat-val">${prevScrolls}</span>
+          </div>
+          <div class="scroll-stat">
+            <span class="scroll-stat-label">⚡ Scroll veloci (&gt;0.5px/ms)</span>
+            <span class="scroll-stat-val" style="color:var(--red)">${fastScrolls}</span>
+          </div>
+          <div class="scroll-stat">
+            <span class="scroll-stat-label">🐢 Velocità media</span>
+            <span class="scroll-stat-val">${avgVel} px/ms</span>
+          </div>
+          <div class="scroll-stat">
+            <span class="scroll-stat-label">↩️ Ritorni a slide precedenti</span>
+            <span class="scroll-stat-val">${V.filter(v=>v.revisit_count>0).length}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dwell time bar chart -->
+      <div class="chart-card">
+        <div class="chart-title">⏱️ Tempo medio per slide (classifica attenzione)</div>
+        <div class="bar-list">
+          ${SLIDES.map((slide, i) => {
+            const d = dwellBySlide[i] || { total:0, count:0 };
+            const avg = d.count ? Math.round(d.total/d.count) : 0;
+            const maxAvg = Math.max(...SLIDES.map((_,j) => {
+              const dd = dwellBySlide[j] || { total:0, count:0 };
+              return dd.count ? dd.total/dd.count : 0;
+            }), 1);
+            const pct = Math.round(avg/maxAvg*100);
+            return `<div class="bar-item">
+              <div class="bar-name" title="${esc(slide.label||String(i))}">${esc(slide.label||('Slide '+(i+1)))}</div>
+              <div class="bar-wrap">
+                <div class="bar-fill" style="width:${pct}%;background:${COLORS[i%COLORS.length]}">
+                  <span class="bar-val">${fmtMs(avg)}</span>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Hearts per slide -->
+      <div class="chart-card">
+        <div class="chart-title">❤️ Cuori per slide</div>
+        <div class="bar-list">
+          ${SLIDES.map((slide, i) => {
+            const hc = dwellBySlide[i]?.hearts || 0;
+            const maxH = Math.max(...SLIDES.map((_,j) => dwellBySlide[j]?.hearts||0), 1);
+            const pct = Math.round(hc/maxH*100);
+            return `<div class="bar-item">
+              <div class="bar-name">${esc(slide.label||('Slide '+(i+1)))}</div>
+              <div class="bar-wrap">
+                <div class="bar-fill" style="width:${pct}%;background:#ef4444">
+                  <span class="bar-val">${hc} ❤️</span>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Device breakdown -->
+      <div class="chart-card">
+        <div class="chart-title">📱 Dispositivi & Browser</div>
+        <div style="display:flex;flex-direction:column;gap:.5rem">
+          ${(() => {
+            const browsers = {};
+            const oss = {};
+            S.forEach(s => {
+              browsers[s.browser||'N/D'] = (browsers[s.browser||'N/D']||0)+1;
+              oss[s.os||'N/D'] = (oss[s.os||'N/D']||0)+1;
+            });
+            return Object.entries(browsers).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
+              `<div class="scroll-stat"><span class="scroll-stat-label">${esc(k)}</span><span class="scroll-stat-val">${v}</span></div>`
+            ).join('');
+          })()}
+          <div style="height:.5rem"></div>
+          ${(() => {
+            const oss = {};
+            S.forEach(s => { oss[s.os||'N/D'] = (oss[s.os||'N/D']||0)+1; });
+            return Object.entries(oss).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
+              `<div class="scroll-stat"><span class="scroll-stat-label">📌 ${esc(k)}</span><span class="scroll-stat-val">${v}</span></div>`
+            ).join('');
+          })()}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sessions table -->
+    <div class="section" style="margin-top:2rem">
+      <div class="section-title">Sessioni recenti (dati anonimi)</div>
+      <div class="chart-card" style="overflow-x:auto">
+        ${S.length === 0 ? '<div class="empty">Nessuna sessione ancora</div>' : `
+        <table class="sessions-table">
+          <tr>
+            <th>#</th><th>Ora</th><th>Browser</th><th>OS</th><th>Tipo</th>
+            <th>Schermo</th><th>Lingua</th><th>Durata</th><th>Slide viste</th><th>❤️</th>
+          </tr>
+          ${S.slice(0,30).map((s,i) => {
+            const userViews = V.filter(v=>v.session_id===s.id).length;
+            const userHearts= H.filter(h=>h.session_id===s.id).length;
+            const time = new Date(s.created_at).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+            return `<tr>
+              <td style="color:var(--muted)">${i+1}</td>
+              <td>${time}</td>
+              <td>${esc(s.browser||'—')}</td>
+              <td>${esc(s.os||'—')}</td>
+              <td><span class="badge ${s.is_mobile?'badge-mobile':'badge-desktop'}">${s.is_mobile?'📱 Mobile':'🖥️ Desktop'}</span></td>
+              <td style="color:var(--muted)">${s.screen_w||'?'}×${s.screen_h||'?'}</td>
+              <td style="color:var(--muted)">${esc(s.language||'—')}</td>
+              <td style="color:var(--blue)">${fmtMs(s.total_ms)}</td>
+              <td style="color:var(--green)">${userViews}</td>
+              <td style="color:var(--red)">${userHearts}</td>
+            </tr>`;
+          }).join('')}
+        </table>`}
+      </div>
+    </div>
+  `;
+}
+
+// Auto-start se hash presente
+window.addEventListener('load', () => {
+  const token = window.location.hash.slice(1);
+  if (token === CFG.analyticsToken) {
+    document.getElementById('auth-wall').style.display = 'none';
+    document.getElementById('dashboard').classList.add('visible');
+    loadAll();
+    setInterval(loadAll, 30000);
+  }
+});
+</script>
+</body>
+</html>
