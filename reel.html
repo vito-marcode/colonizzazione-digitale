@@ -199,10 +199,9 @@ async function initSession() {
 // Chiudi sessione alla fine
 window.addEventListener('beforeunload', () => {
   const totalMs = Date.now() - sessionStart;
-  navigator.sendBeacon('/api/noop', JSON.stringify({ // fallback silenzioso
-    session_id: SESSION_ID, total_ms: totalMs
-  }));
-  // Update via Supabase (best-effort)
+  // Salva l'ultima slide prima di uscire (best-effort)
+  onSlideLeave(currentIndex);
+  // Aggiorna durata sessione
   sb.from('sessions').update({ ended_at: new Date().toISOString(), total_ms: totalMs })
     .eq('id', SESSION_ID);
 });
@@ -341,6 +340,9 @@ function onSlideLeave(idx) {
     touch_side:    side,
     touch_x_avg:   parseFloat(avgX.toFixed(3)),
     revisit_count: t.revisits,
+  }).then(({ error }) => {
+    if (error) console.error('[View] ❌ INSERT fallito slide', idx, ':', error.message);
+    else console.log('[View] ✅ slide', idx, SLIDES[idx]?.label, '— dwell:', Math.round(t.dwell) + 'ms', 'side:', side);
   });
 
   updateDebug(idx, t.dwell, side, avgX);
@@ -348,7 +350,7 @@ function onSlideLeave(idx) {
 
 document.addEventListener('touchstart', (e) => {
   if (isAnimating) return;
-  if (e.target.closest('#heart-btn')) return; // gestito direttamente dal bottone
+  if (e.target instanceof Element && e.target.closest('#heart-btn')) return; // gestito direttamente dal bottone
   const touch = e.touches[0];
   touchStartY = touch.clientY;
   touchStartX = touch.clientX;
