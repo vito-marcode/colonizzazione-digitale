@@ -343,7 +343,7 @@
 'use strict';
 
 const CFG = window.APP_CONFIG;
-const supabase = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
+const sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
 
 // ── QR Code ──────────────────────────────────────────────────
 const reelUrl = CFG.siteUrl.replace(/\/$/, '') + '/reel.html';
@@ -446,7 +446,7 @@ function playHeartSound() {
 // ── Realtime subscription ─────────────────────────────────────
 let viewerCount = 0;
 
-supabase
+sb
   .channel('live')
   .on('postgres_changes', {
     event: 'INSERT', schema: 'public', table: 'hearts'
@@ -471,7 +471,7 @@ document.addEventListener('click', () => {
 async function loadViewerCount() {
   const today = new Date();
   today.setHours(0,0,0,0);
-  const { count } = await supabase
+  const { count } = await sb
     .from('sessions')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', today.toISOString());
