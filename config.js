@@ -13,8 +13,8 @@
 
 window.APP_CONFIG = {
   // ── Supabase ─────────────────────────────────────────
-  supabaseUrl:  'https://YOUR-PROJECT-ID.supabase.co',
-  supabaseKey:  'YOUR-ANON-PUBLIC-KEY',
+  supabaseUrl:  'https://khullbyufufxuozqbijt.supabase.co',
+  supabaseKey:  'sb_publishable_H4HMprv63uZBCP1aQG3GqQ_Yvdd9I3L',
 
   // ── URL del sito deployato (per il QR code) ──────────
   // Esempio: 'https://colonizzazione-digitale.netlify.app'
