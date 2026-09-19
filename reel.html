@@ -196,17 +196,37 @@ async function initSession() {
   else console.log('[Session] ✅ sessione creata:', SESSION_ID);
 }
 
-// Chiudi sessione alla fine
-window.addEventListener('beforeunload', () => {
-  const totalMs = Date.now() - sessionStart;
-  // Salva l'ultima slide prima di uscire (best-effort)
+const sessionStart = Date.now();
+
+// Chiudi/aggiorna la sessione ogni volta che la pagina sparisce dalla vista.
+// beforeunload da solo NON basta: su mobile (iOS Safari, Chrome Android)
+// spesso non viene mai sparato quando l'utente blocca lo schermo, cambia
+// app o chiude la tab — per questo la maggior parte delle view/dwell non
+// veniva mai salvata. visibilitychange + pagehide sono molto più affidabili.
+function flushOnHide() {
   onSlideLeave(currentIndex);
-  // Aggiorna durata sessione
+  const totalMs = Date.now() - sessionStart;
+  // Il builder di supabase-js è "thenable pigro": la richiesta HTTP parte solo
+  // quando qualcosa consuma la promise (.then()/await). Senza .then() qui la
+  // update non veniva MAI inviata, a prescindere da RLS.
   sb.from('sessions').update({ ended_at: new Date().toISOString(), total_ms: totalMs })
-    .eq('id', SESSION_ID);
+    .eq('id', SESSION_ID)
+    .then(({ error }) => {
+      if (error) console.error('[Session] ❌ update fallito:', error.message);
+    });
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    flushOnHide();
+  } else {
+    // L'utente torna sulla pagina (es. sblocca il telefono): riprendi il timer
+    onSlideEnter(currentIndex);
+  }
 });
 
-const sessionStart = Date.now();
+window.addEventListener('pagehide', flushOnHide);
+window.addEventListener('beforeunload', flushOnHide);
 
 // ═══════════════════════════════════════════════════════════
 // REEL RENDERING
@@ -254,7 +274,6 @@ function renderSlides() {
 // SCROLL ENGINE
 // ═══════════════════════════════════════════════════════════
 let currentIndex = 0;
-let isAnimating = false;
 
 function goTo(index, animate = true) {
   const newIndex = ((index % N) + N) % N;
@@ -265,8 +284,6 @@ function goTo(index, animate = true) {
     reelEl.style.transition = 'none';
   } else {
     reelEl.style.transition = 'transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94)';
-    isAnimating = true;
-    setTimeout(() => { isAnimating = false; }, 400);
   }
 
   reelEl.style.transform = `translateY(${-currentIndex * 100}dvh)`;
@@ -299,8 +316,9 @@ function onSlideEnter(idx) {
   if (!slideTimers[idx]) {
     slideTimers[idx] = { enterAt: Date.now(), dwell: 0, pauses: [], touches: [], revisits: 0 };
   } else {
-    slideTimers[idx].revisits++;
-    slideTimers[idx].enterAt = Date.now(); // re-enter
+    const t = slideTimers[idx];
+    if (t.enterAt === null) t.revisits++; // vera revisita solo se era stata chiusa da un flush
+    t.enterAt = Date.now(); // (re)avvia il timer
   }
   // Start pause detection (≥2s fermo = vera attenzione)
   clearTimeout(pauseTimer);
@@ -310,11 +328,12 @@ function onSlideEnter(idx) {
 }
 
 function onSlideLeave(idx) {
-  if (!slideTimers[idx]) return;
   const t = slideTimers[idx];
+  if (!t || t.enterAt === null) return; // niente di nuovo da salvare (già flushato)
   const now = Date.now();
-  const dwell = now - t.enterAt;
-  t.dwell += dwell;
+  const enterHour = new Date(t.enterAt).getHours();
+  t.dwell += now - t.enterAt;
+  t.enterAt = null; // marca come flushato: evita doppi insert se richiamata di nuovo
 
   // Chiudi pausa se aperta
   if (pauseStart) {
@@ -328,28 +347,33 @@ function onSlideLeave(idx) {
     ? t.touches.reduce((s, tx) => s + tx, 0) / t.touches.length
     : 0.5;
   const side = avgX < 0.35 ? 'left' : avgX > 0.65 ? 'right' : 'center';
+  const dwell = t.dwell;
 
   // Salva view su Supabase (async, non blocca)
   sb.from('image_views').insert({
     session_id:    SESSION_ID,
     image_index:   idx,
     image_label:   SLIDES[idx]?.label || String(idx),
-    dwell_ms:      Math.round(t.dwell),
-    enter_hour:    new Date(t.enterAt).getHours(),
+    dwell_ms:      Math.round(dwell),
+    enter_hour:    enterHour,
     max_pause_ms:  t.pauses.length ? Math.max(...t.pauses) : 0,
     touch_side:    side,
     touch_x_avg:   parseFloat(avgX.toFixed(3)),
     revisit_count: t.revisits,
   }).then(({ error }) => {
     if (error) console.error('[View] ❌ INSERT fallito slide', idx, ':', error.message);
-    else console.log('[View] ✅ slide', idx, SLIDES[idx]?.label, '— dwell:', Math.round(t.dwell) + 'ms', 'side:', side);
+    else console.log('[View] ✅ slide', idx, SLIDES[idx]?.label, '— dwell:', Math.round(dwell) + 'ms', 'side:', side);
   });
 
-  updateDebug(idx, t.dwell, side, avgX);
+  updateDebug(idx, dwell, side, avgX);
+
+  // Reset del segmento: la prossima entrata inizia a contare da zero
+  t.dwell = 0;
+  t.pauses = [];
+  t.touches = [];
 }
 
 document.addEventListener('touchstart', (e) => {
-  if (isAnimating) return;
   if (e.target instanceof Element && e.target.closest('#heart-btn')) return; // gestito direttamente dal bottone
   const touch = e.touches[0];
   touchStartY = touch.clientY;
@@ -398,7 +422,11 @@ document.addEventListener('touchend', (e) => {
   if (Math.abs(dy) > SWIPE_THRESHOLD || Math.abs(vel) > VEL_THRESHOLD) {
     nextIndex = dy > 0 ? currentIndex + 1 : currentIndex - 1;
 
-    // Registra scroll event
+    // Registra scroll event.
+    // Il builder di supabase-js è "thenable pigro": senza .then()/await la
+    // richiesta HTTP non viene MAI inviata (verificato: nessuna richiesta di
+    // rete parte se la promise non viene consumata) — per questo scroll_events
+    // era pressoché sempre vuota, indipendentemente da isAnimating o soglie.
     const dir = dy > 0 ? 'next' : 'prev';
     sb.from('scroll_events').insert({
       session_id:  SESSION_ID,
@@ -408,6 +436,8 @@ document.addEventListener('touchend', (e) => {
       velocity:    parseFloat(vel.toFixed(4)),
       duration_ms: dt,
       touch_x_pct: parseFloat((touchStartX / window.innerWidth).toFixed(3)),
+    }).then(({ error }) => {
+      if (error) console.error('[Scroll] ❌ INSERT fallito:', error.message);
     });
   }
 
@@ -418,11 +448,14 @@ document.addEventListener('touchend', (e) => {
   pauseTimer = setTimeout(() => { pauseStart = Date.now(); }, 2000);
 }, { passive: true });
 
-// Scroll da mouse (desktop testing)
+// Scroll da mouse (desktop testing) — debounce dedicato: un trackpad genera
+// decine di eventi wheel per un solo gesto, altrimenti si saltano più slide.
+let lastWheelAt = 0;
 document.addEventListener('wheel', (e) => {
-  if (isAnimating) return;
-  if (e.deltaY > 40) goTo(currentIndex + 1);
-  else if (e.deltaY < -40) goTo(currentIndex - 1);
+  const now = Date.now();
+  if (now - lastWheelAt < 400) return;
+  if (e.deltaY > 40) { lastWheelAt = now; goTo(currentIndex + 1); }
+  else if (e.deltaY < -40) { lastWheelAt = now; goTo(currentIndex - 1); }
 }, { passive: true });
 
 // ═══════════════════════════════════════════════════════════
@@ -465,10 +498,15 @@ async function sendHeart(e) {
   document.body.appendChild(fl);
   fl.addEventListener('animationend', () => fl.remove());
 
-  // Touch position per hand analysis
-  const xPct = e?.touches?.[0]
-    ? e.touches[0].clientX / window.innerWidth
-    : (e?.clientX ? e.clientX / window.innerWidth : 0.5);
+  // Touch position per hand analysis.
+  // Su touchend il dito appena alzato è in changedTouches, NON in touches
+  // (che a quel punto è già vuoto) — per questo su mobile finiva sempre
+  // sul default 0.5 (centro). changedTouches copre touchend, e.clientX
+  // copre il click da mouse/desktop.
+  const touch = e?.changedTouches?.[0] || e?.touches?.[0];
+  const xPct = touch
+    ? touch.clientX / window.innerWidth
+    : (typeof e?.clientX === 'number' ? e.clientX / window.innerWidth : 0.5);
 
   // Salva su Supabase (triggera realtime su index.html)
   const { error: hErr } = await sb.from('hearts').insert({

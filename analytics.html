@@ -235,7 +235,6 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="config.js"></script>
 <script>
 'use strict';
@@ -244,24 +243,25 @@ const CFG = window.APP_CONFIG;
 const sb  = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
 
 // ── Auth ──────────────────────────────────────────────────────
+function unlockDashboard() {
+  document.getElementById('auth-wall').style.display = 'none';
+  document.getElementById('dashboard').classList.add('visible');
+  loadAll();
+  setInterval(loadAll, 30000); // auto-refresh ogni 30s
+}
+
 function checkAuth() {
   const input = document.getElementById('auth-input').value.trim();
-  const token = window.location.hash.slice(1) || input;
-  if (token === CFG.analyticsToken || input === CFG.analyticsToken) {
-    document.getElementById('auth-wall').style.display = 'none';
-    document.getElementById('dashboard').classList.add('visible');
-    loadAll();
-    setInterval(loadAll, 30000); // auto-refresh ogni 30s
+  if (input === CFG.analyticsToken || window.location.hash.slice(1) === CFG.analyticsToken) {
+    unlockDashboard();
   } else {
     document.getElementById('auth-err').style.display = 'block';
   }
 }
 
-// Auto-check via URL hash
+// Auto-login via URL hash (link condiviso con il token)
 if (window.location.hash.slice(1) === CFG.analyticsToken) {
-  document.getElementById('auth-wall').style.display = 'none';
-  document.getElementById('dashboard').classList.add('visible');
-  setInterval(() => {}, 0); // dummy per non bloccare
+  unlockDashboard();
 }
 
 // ── Load all data ─────────────────────────────────────────────
@@ -323,9 +323,11 @@ function renderDashboard(S, V, H, SC) {
   });
 
   // ── Hand detection ─────────────────────────────────────────
+  // Solo da image_views/scroll_events: il bottone cuore è fisso in basso a
+  // destra, quindi i suoi tap sarebbero sempre sbilanciati verso "destra"
+  // indipendentemente da quale mano regga davvero il telefono.
   const hands = { left:0, right:0, center:0 };
   V.filter(v=>v.touch_side).forEach(v => { hands[v.touch_side] = (hands[v.touch_side]||0)+1; });
-  // Anche da scroll events
   SC.forEach(s => {
     if (s.touch_x_pct !== null) {
       const side = s.touch_x_pct < 0.35 ? 'left' : s.touch_x_pct > 0.65 ? 'right' : 'center';
@@ -581,16 +583,6 @@ function renderDashboard(S, V, H, SC) {
   `;
 }
 
-// Auto-start se hash presente
-window.addEventListener('load', () => {
-  const token = window.location.hash.slice(1);
-  if (token === CFG.analyticsToken) {
-    document.getElementById('auth-wall').style.display = 'none';
-    document.getElementById('dashboard').classList.add('visible');
-    loadAll();
-    setInterval(loadAll, 30000);
-  }
-});
 </script>
 </body>
 </html>
