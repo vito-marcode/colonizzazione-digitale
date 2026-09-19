@@ -1,0 +1,26 @@
+{
+  "name": "presentazione_sicurezza_digitale",
+  "version": "1.0.0",
+  "description": "Progetto didattico: presentazione sulla sorveglianza digitale con reel interattivo tracciato.",
+  "main": "config.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vito-marcode/colonizzazione-digitale.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vito-marcode/colonizzazione-digitale/issues"
+  },
+  "homepage": "https://github.com/vito-marcode/colonizzazione-digitale#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
