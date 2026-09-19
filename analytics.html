@@ -193,6 +193,26 @@
   .loading { text-align:center; padding:3rem; color:var(--muted); font-family:'Space Mono',monospace; }
 
   .empty { color:var(--muted); font-size:.8rem; text-align:center; padding:2rem; }
+
+  /* ── Filtro sessione di analisi ───────────────────────── */
+  .filter-bar {
+    display:flex; flex-wrap:wrap; align-items:center; gap:.6rem;
+    margin-top:1rem; padding:.7rem 1rem;
+    background:var(--card); border:1px solid var(--border); border-radius:8px;
+  }
+  .filter-label { font-size:.75rem; color:var(--muted); }
+  .filter-bar input[type="datetime-local"] {
+    background:#0d1117; border:1px solid var(--border); color:var(--text);
+    padding:.35rem .6rem; border-radius:6px; font-size:.8rem;
+    font-family:'Space Mono',monospace; color-scheme: dark;
+  }
+  .filter-btn {
+    background:transparent; border:1px solid var(--border); color:var(--text);
+    padding:.35rem .9rem; border-radius:6px; font-size:.75rem;
+    cursor:pointer; transition:all .2s; white-space:nowrap;
+  }
+  .filter-btn:hover { border-color:var(--blue); color:var(--blue); }
+  .filter-status { font-size:.7rem; color:var(--muted); font-family:'Space Mono',monospace; }
 </style>
 </head>
 <body>
@@ -223,6 +243,16 @@
     <button class="refresh-btn" onclick="loadAll()">↺ Aggiorna</button>
   </header>
 
+  <!-- Filtro: mostra solo i dati raccolti da un certo istante in poi, senza
+       cancellare nulla dal database. Persiste solo in questo browser. -->
+  <div class="filter-bar">
+    <span class="filter-label">Mostra dati da:</span>
+    <input type="datetime-local" id="filter-start" onchange="onFilterChange()">
+    <button class="filter-btn" onclick="setFilterNow()">🆕 Nuova sessione da adesso</button>
+    <button class="filter-btn" onclick="clearFilter()">Mostra tutti i dati</button>
+    <span class="filter-status" id="filter-status"></span>
+  </div>
+
   <!-- Reveal banner -->
   <div class="reveal-banner">
     <h2>🎭 Quello che l'algoritmo ha visto di voi</h2>
@@ -246,8 +276,58 @@ const sb  = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
 function unlockDashboard() {
   document.getElementById('auth-wall').style.display = 'none';
   document.getElementById('dashboard').classList.add('visible');
+  syncFilterUI();
   loadAll();
   setInterval(loadAll, 30000); // auto-refresh ogni 30s
+}
+
+// ── Filtro sessione di analisi ──────────────────────────────────
+// Non cancella nulla dal database: nasconde solo, in QUESTO browser, tutto
+// ciò che è stato raccolto prima dell'istante scelto. Persistito in
+// localStorage così sopravvive a un refresh della pagina.
+const FILTER_KEY = 'colonizzazione_analytics_filter_start';
+
+function getFilterStart() {
+  return localStorage.getItem(FILTER_KEY); // ISO string oppure null
+}
+
+function toDatetimeLocalValue(isoString) {
+  const d = new Date(isoString);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function syncFilterUI() {
+  const start = getFilterStart();
+  const input = document.getElementById('filter-start');
+  const status = document.getElementById('filter-status');
+  if (start) {
+    input.value = toDatetimeLocalValue(start);
+    status.textContent = `Sessione di analisi attiva dal ${new Date(start).toLocaleString('it-IT')} — i dati precedenti restano nel database, solo nascosti qui`;
+  } else {
+    input.value = '';
+    status.textContent = 'Nessun filtro: stai vedendo tutti i dati raccolti';
+  }
+}
+
+function setFilterNow() {
+  localStorage.setItem(FILTER_KEY, new Date().toISOString());
+  syncFilterUI();
+  loadAll();
+}
+
+function clearFilter() {
+  localStorage.removeItem(FILTER_KEY);
+  syncFilterUI();
+  loadAll();
+}
+
+function onFilterChange() {
+  const input = document.getElementById('filter-start');
+  if (!input.value) { clearFilter(); return; }
+  localStorage.setItem(FILTER_KEY, new Date(input.value).toISOString());
+  syncFilterUI();
+  loadAll();
 }
 
 function checkAuth() {
@@ -277,10 +357,13 @@ async function loadAll() {
     sb.from('scroll_events').select('*'),
   ]);
 
-  const S = sessions.data || [];
-  const V = views.data    || [];
-  const H = hearts.data   || [];
-  const SC= scrolls.data  || [];
+  const filterStart = getFilterStart();
+  const afterFilter = (row) => !filterStart || new Date(row.created_at) >= new Date(filterStart);
+
+  const S = (sessions.data || []).filter(afterFilter);
+  const V = (views.data    || []).filter(afterFilter);
+  const H = (hearts.data   || []).filter(afterFilter);
+  const SC= (scrolls.data  || []).filter(afterFilter);
 
   renderDashboard(S, V, H, SC);
 }
