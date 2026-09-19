@@ -530,11 +530,29 @@ function updateDebug(idx, dwell, side, avgX) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// PRESENCE (per il contatore "N connessi" sullo schermo principale)
+// ═══════════════════════════════════════════════════════════
+// Usa la Presence di Supabase Realtime invece di un semplice conteggio di
+// INSERT su sessions: quel conteggio saliva soltanto e non si accorgeva mai
+// di chi chiudeva la pagina. La Presence traccia la connessione WebSocket
+// stessa — quando questa cade (tab chiusa, telefono spento, rete persa),
+// Supabase rimuove automaticamente la voce, senza bisogno di heartbeat.
+function joinPresence() {
+  const presenceChannel = sb.channel('live', { config: { presence: { key: SESSION_ID } } });
+  presenceChannel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      presenceChannel.track({ online_at: new Date().toISOString() });
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
 async function init() {
   document.getElementById('conn-banner').classList.add('show');
   await initSession();
+  joinPresence();
   document.getElementById('conn-banner').classList.remove('show');
 
   renderSlides();

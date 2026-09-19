@@ -444,8 +444,13 @@ function playHeartSound() {
 }
 
 // ── Realtime subscription ─────────────────────────────────────
-let viewerCount = 0;
-
+// Il contatore "connessi" usa la Presence di Supabase Realtime, non un
+// conteggio di INSERT su sessions: quel conteggio saliva soltanto (nuova
+// sessione = +1) e non si accorgeva mai di chi chiudeva il reel, quindi
+// restava "connessi" gente che se ne era andata da ore. Ogni reel.html
+// aperto si registra sullo stesso canale ('live') con la propria
+// SESSION_ID; quando la sua connessione WebSocket cade (tab chiusa,
+// telefono spento, rete persa) Supabase lo rimuove da solo.
 const rtChannel = sb
   .channel('live')
   .on('postgres_changes', {
@@ -454,19 +459,16 @@ const rtChannel = sb
     console.log('[Realtime] ❤️ heart ricevuto:', payload.new);
     showHeartAnimation(3);
   })
-  .on('postgres_changes', {
-    event: 'INSERT', schema: 'public', table: 'sessions'
-  }, (payload) => {
-    console.log('[Realtime] 👤 nuova sessione:', payload.new);
-    viewerCount++;
-    document.getElementById('viewers-count').textContent = viewerCount;
+  .on('presence', { event: 'sync' }, () => {
+    const state = rtChannel.presenceState();
+    document.getElementById('viewers-count').textContent = Object.keys(state).length;
   })
   .subscribe((status, err) => {
     console.log('[Realtime] stato canale:', status, err || '');
     const dot = document.querySelector('.viewers-dot');
     if (status === 'SUBSCRIBED') {
       dot.style.background = '#22c55e'; // verde = connesso
-      console.log('[Realtime] ✅ connesso, in ascolto su hearts e sessions');
+      console.log('[Realtime] ✅ connesso, in ascolto su hearts e presenza spettatori');
     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
       dot.style.background = '#ef4444'; // rosso = errore
       console.error('[Realtime] ❌ errore connessione:', status, err);
@@ -480,21 +482,6 @@ document.addEventListener('click', () => {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }, { once: true });
-
-// Carica conteggio sessioni attive
-async function loadViewerCount() {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const { count } = await sb
-    .from('sessions')
-    .select('*', { count: 'exact', head: true })
-    .gte('created_at', today.toISOString());
-  if (count) {
-    viewerCount = count;
-    document.getElementById('viewers-count').textContent = viewerCount;
-  }
-}
-loadViewerCount();
 </script>
 </body>
 </html>
