@@ -27,13 +27,13 @@ window.APP_CONFIG = {
   // Aggiungi qui le tue immagini (metti i file in images/)
   // type: 'image' | 'text'
   slides: [
-    { type: 'image', src: 'images/slide-01.png', label: 'Snowden' },
-    { type: 'image', src: 'images/slide-02.png', label: 'prodotto' },
-    { type: 'image', src: 'images/slide-03.png', label: 'petrolio' },
-    { type: 'image', src: 'images/slide-04.png', label: 'zuboff' },
-    { type: 'image', src: 'images/slide-05.png', label: 'internet' },
-    { type: 'image', src: 'images/slide-06.png', label: 'tecnologia' },
-    { type: 'image', src: 'images/slide-07.png', label: 'papa-francesco' },
-    { type: 'image', src: 'images/slide-08.png', label: 'privacy' },
+    { type: 'image', src: 'images/slide-01.jpg', label: 'Snowden' },
+    { type: 'image', src: 'images/slide-02.jpg', label: 'prodotto' },
+    { type: 'image', src: 'images/slide-03.jpg', label: 'petrolio' },
+    { type: 'image', src: 'images/slide-04.jpg', label: 'zuboff' },
+    { type: 'image', src: 'images/slide-05.jpg', label: 'internet' },
+    { type: 'image', src: 'images/slide-06.jpg', label: 'tecnologia' },
+    { type: 'image', src: 'images/slide-07.jpg', label: 'papa-francesco' },
+    { type: 'image', src: 'images/slide-08.jpg', label: 'privacy' },
   ],
 };
