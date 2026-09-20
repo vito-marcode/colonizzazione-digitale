@@ -190,8 +190,43 @@ const SESSION = {
   conn_type:  navigator.connection?.effectiveType || 'N/D',
 };
 
+// Modello del dispositivo: Client Hints su Chrome/Android lo dà per nome
+// (es. "Pixel 8 Pro"); su iOS Safari non è recuperabile (Apple lo anonimizza
+// deliberatamente dal 2019). Come ripiego, il renderer GPU via WebGL è
+// spesso un indizio sul chip/modello anche quando lo User-Agent non lo dice.
+async function getDeviceModel() {
+  if (navigator.userAgentData?.getHighEntropyValues) {
+    try {
+      const hints = await navigator.userAgentData.getHighEntropyValues(['model']);
+      if (hints.model) return hints.model;
+    } catch (e) { /* non supportato/negato, si passa al ripiego */ }
+  }
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    const ext = gl?.getExtension('WEBGL_debug_renderer_info');
+    const renderer = ext && gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+    if (renderer) return renderer;
+  } catch (e) { /* ignorato */ }
+  return null;
+}
+
+// Operatore/rete: il browser non lo sa, ma il proprio IP pubblico sì —
+// lookup di terze parti (ipapi.co) sull'organizzazione associata all'IP.
+async function getISP() {
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.org || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function initSession() {
-  const { error } = await sb.from('sessions').insert(SESSION);
+  const [deviceModel, isp] = await Promise.all([getDeviceModel(), getISP()]);
+  const { error } = await sb.from('sessions').insert({ ...SESSION, device_model: deviceModel, isp });
   if (error) console.error('[Session] ❌ INSERT fallito:', error.message);
   else console.log('[Session] ✅ sessione creata:', SESSION_ID);
 }

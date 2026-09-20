@@ -5,7 +5,7 @@
 
 function seedDashboardFixture(store) {
   store.sessions.push(
-    { id: 's1', created_at: '2026-09-19T09:00:00Z', browser: 'Chrome', os: 'Android', is_mobile: true, screen_w: 412, screen_h: 915, language: 'it', total_ms: 42000 },
+    { id: 's1', created_at: '2026-09-19T09:00:00Z', browser: 'Chrome', os: 'Android', is_mobile: true, screen_w: 412, screen_h: 915, language: 'it', total_ms: 42000, device_model: 'Pixel 8 Pro', isp: 'Vodafone Italia' },
     { id: 's2', created_at: '2026-09-19T09:05:00Z', browser: 'Chrome', os: 'Android', is_mobile: true, screen_w: 412, screen_h: 915, language: 'it', total_ms: 0 },
     { id: 's3', created_at: '2026-09-19T09:10:00Z', browser: 'Firefox', os: 'macOS', is_mobile: false, screen_w: 1680, screen_h: 1050, language: 'en', total_ms: 18000 },
     { id: 's4', created_at: '2026-09-19T09:15:00Z', browser: 'Chrome', os: 'iOS', is_mobile: true, screen_w: 390, screen_h: 844, language: 'it', total_ms: 0 },

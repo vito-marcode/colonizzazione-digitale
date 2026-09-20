@@ -38,7 +38,7 @@ Due modi:
 
 Ogni telefono che apre il reel genera una sessione anonima (un ID casuale, non collegato a nome/email) con questi dati:
 
-- **Sessione**: browser, sistema operativo, se è mobile o desktop, risoluzione schermo, lingua, durata totale della visita.
+- **Sessione**: browser, sistema operativo, se è mobile o desktop, risoluzione schermo, lingua, durata totale della visita, modello del telefono (quando rilevabile — su iPhone non è possibile, Apple lo nasconde di proposito) e operatore/rete usata.
 - **Per ogni slide vista**: quanto tempo ci si è fermati sopra (dwell time), se si è tornati indietro a rivederla, e — dalla posizione X del dito sullo schermo mentre si scorre — una stima di quale mano viene usata per tenere il telefono.
 - **Cuori**: quale slide, a che ora del giorno.
 - **Gesti di scroll**: avanti o indietro, veloce o lento.
@@ -57,7 +57,7 @@ Aprendo [analytics.html](https://presentazio.devmarco.it/analytics.html#colonizz
 - **Comportamento di scroll**: quanti scroll in avanti/indietro, quanti "veloci", velocità media, quante volte si è tornati su una slide già vista.
 - **Classifiche**: tempo medio per slide e cuori per slide, in ordine.
 - **Dispositivi & Browser**: quanti iPhone/Android, quanti Chrome/Safari/Firefox, ecc.
-- **Sessioni recenti**: tabella con le ultime 30 sessioni, una riga per spettatore.
+- **Sessioni recenti**: tabella con le ultime 30 sessioni, una riga per spettatore — include anche modello del dispositivo e operatore/rete, quando disponibili.
 
 La dashboard si **auto-aggiorna ogni 30 secondi** da sola: puoi lasciarla aperta e proiettata mentre continuano ad arrivare dati, oppure premere **"↺ Aggiorna"** in alto a destra per forzare un refresh immediato.
 

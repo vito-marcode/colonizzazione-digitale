@@ -118,6 +118,8 @@ test('Tabella sessioni recenti: righe, views e hearts per sessione', async ({ pa
   await expect(s1Row).toContainText('Android');
   await expect(s1Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s1.views));
   await expect(s1Row.locator('td').nth(9)).toHaveText(String(expected.perSession.s1.hearts));
+  await expect(s1Row.locator('td').nth(10)).toHaveText('Pixel 8 Pro');
+  await expect(s1Row.locator('td').nth(11)).toHaveText('Vodafone Italia');
 
   // s3: Firefox/macOS/desktop, durata 18.0s
   const s3Row = page.locator('.sessions-table tr', { hasText: '18.0s' });
@@ -126,6 +128,9 @@ test('Tabella sessioni recenti: righe, views e hearts per sessione', async ({ pa
   await expect(s3Row).toContainText('Desktop');
   await expect(s3Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s3.views));
   await expect(s3Row.locator('td').nth(9)).toHaveText(String(expected.perSession.s3.hearts));
+  // s3 non ha device_model/isp impostati nella fixture: deve mostrare il fallback
+  await expect(s3Row.locator('td').nth(10)).toHaveText('—');
+  await expect(s3Row.locator('td').nth(11)).toHaveText('—');
 
   // s2 (Chrome/Android, 0s) e s4 (Chrome/iOS, 0s) condividono "0s": distinti per OS.
   const s2Row = page.locator('.sessions-table tr').filter({ hasText: '0s' }).filter({ hasText: 'Android' });

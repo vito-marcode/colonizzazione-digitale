@@ -34,6 +34,19 @@ test('crea una sessione con i campi del dispositivo mobile emulato (Pixel 7 / An
   expect(s.language).toBeTruthy();
 });
 
+test('include device_model (ripiego WebGL, niente Client Hints in questo ambiente) e isp (lookup ipapi.co mockato)', async ({ context, page }) => {
+  const store = installSupabaseMock(context); // il mock intercetta anche ipapi.co
+  await page.goto('/reel.html');
+
+  await expect.poll(() => store.sessions.length).toBe(1);
+  const s = store.sessions[0];
+  // Playwright non spoofa navigator.userAgentData per il device emulato, quindi
+  // qui cade sempre sul ripiego WebGL: un renderer software (SwiftShader) in
+  // questo ambiente headless, un chip GPU vero su un telefono reale.
+  expect(s.device_model).toBeTruthy();
+  expect(s.isp).toBe('AS0000 Test Network Provider');
+});
+
 test('visibilitychange (hidden) flush una view parziale; al ritorno visibile il timer riprende (revisit)', async ({ context, page }) => {
   const store = installSupabaseMock(context);
   await page.goto('/reel.html');
@@ -64,7 +77,9 @@ test('BUG NOTO: manca la policy RLS di UPDATE su sessions — total_ms resta 0 d
   await page.waitForTimeout(200);
   await hidePage(page); // flushOnHide tenta il PATCH su sessions
 
-  await page.waitForTimeout(100);
+  // Aspetta che il flush sia completato per davvero (invece di un'attesa fissa,
+  // fragile sotto carico): onSlideLeave scrive su image_views nello stesso giro.
+  await expect.poll(() => store.image_views.length).toBeGreaterThan(0);
   expect(store.sessions[0].total_ms).toBe(0); // il client ha provato, ma RLS nega la scrittura
   expect(store.sessions[0].ended_at).toBeUndefined();
 });

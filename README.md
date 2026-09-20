@@ -6,7 +6,7 @@ Progetto didattico: presentazione sulla sorveglianza digitale con reel interatti
 
 ### 1. Crea il progetto Supabase
 1. Vai su [supabase.com](https://supabase.com) → New project
-2. **SQL Editor** → Incolla e lancia `supabase-schema.sql`, poi anche `supabase-schema-updates.sql` (aggiunge una policy RLS mancante nello schema iniziale, senza la quale la durata delle sessioni non viene mai salvata)
+2. **SQL Editor** → Incolla e lancia in ordine: `supabase-schema.sql`, poi `supabase-schema-updates.sql` (policy RLS di UPDATE su `sessions` mancante nello schema iniziale, senza la quale la durata delle sessioni non viene mai salvata), poi `supabase-schema-updates-2.sql` (colonne `device_model`/`isp`)
 3. Vai su **Project Settings → API** → copia:
    - `Project URL`
    - `anon` public key
@@ -48,7 +48,8 @@ analyticsToken:   'colonizzazione2026',  // cambia a piacere
 ├── images/                       # Immagini del reel
 │   └── slide-01.png
 ├── supabase-schema.sql           # Schema DB iniziale da caricare su Supabase
-├── supabase-schema-updates.sql   # Aggiornamenti allo schema (esegui dopo il primo)
+├── supabase-schema-updates.sql   # Aggiornamento #1 (policy RLS mancante)
+├── supabase-schema-updates-2.sql # Aggiornamento #2 (colonne device_model/isp)
 ├── netlify.toml                  # Config Netlify
 ├── scripts/
 │   └── rls-probe.mjs             # Verifica una tantum dei permessi RLS su Supabase
@@ -95,3 +96,5 @@ Alla fine stampa la query SQL per eliminare la riga di prova appena creata.
 - Cuori per slide e ora del giorno
 - Browser, OS, risoluzione (non personali)
 - Pattern di scroll (avanti/indietro, veloce/lento)
+- Modello del dispositivo, quando rilevabile (Client Hints su Chrome/Android, o come indizio il renderer GPU via WebGL; su iOS Safari non è recuperabile)
+- Operatore/rete, dedotto dall'IP pubblico tramite un lookup di terze parti ([ipapi.co](https://ipapi.co)), non dal browser

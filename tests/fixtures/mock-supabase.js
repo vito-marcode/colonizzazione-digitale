@@ -30,6 +30,15 @@ function parseEqFilter(url, column) {
 function installSupabaseMock(context, { rlsMode = 'broken' } = {}) {
   const store = { sessions: [], image_views: [], hearts: [], scroll_events: [] };
 
+  // reel.html chiama anche ipapi.co (terze parti, non Supabase) per dedurre
+  // l'operatore/rete dall'IP pubblico: mockato qui perché i test devono
+  // restare offline e deterministici, non dipendere da un servizio esterno.
+  context.route('https://ipapi.co/**', (route) => route.fulfill({
+    status: 200,
+    headers: CORS_HEADERS,
+    body: JSON.stringify({ org: 'AS0000 Test Network Provider' }),
+  }));
+
   context.route('**/rest/v1/**', async (route) => {
     const req = route.request();
     const method = req.method();

@@ -642,6 +642,7 @@ function renderDashboard(S, V, H, SC) {
           <tr>
             <th>#</th><th>Ora</th><th>Browser</th><th>OS</th><th>Tipo</th>
             <th>Schermo</th><th>Lingua</th><th>Durata</th><th>Slide viste</th><th>❤️</th>
+            <th>Modello</th><th>Operatore</th>
           </tr>
           ${S.slice(0,30).map((s,i) => {
             const userViews = V.filter(v=>v.session_id===s.id).length;
@@ -658,6 +659,8 @@ function renderDashboard(S, V, H, SC) {
               <td style="color:var(--blue)">${fmtMs(s.total_ms)}</td>
               <td style="color:var(--green)">${userViews}</td>
               <td style="color:var(--red)">${userHearts}</td>
+              <td style="color:var(--muted)">${esc(s.device_model||'—')}</td>
+              <td style="color:var(--muted)">${esc(s.isp||'—')}</td>
             </tr>`;
           }).join('')}
         </table>`}
