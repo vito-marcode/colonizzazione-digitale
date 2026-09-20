@@ -641,7 +641,7 @@ function renderDashboard(S, V, H, SC) {
         <table class="sessions-table">
           <tr>
             <th>#</th><th>Ora</th><th>Browser</th><th>OS</th><th>Tipo</th>
-            <th>Schermo</th><th>Lingua</th><th>Durata</th><th>Slide viste</th><th>❤️</th>
+            <th>Schermo</th><th>Lingua</th><th>Slide viste</th><th>❤️</th>
             <th>Modello</th><th>Operatore</th>
           </tr>
           ${S.slice(0,30).map((s,i) => {
@@ -656,7 +656,6 @@ function renderDashboard(S, V, H, SC) {
               <td><span class="badge ${s.is_mobile?'badge-mobile':'badge-desktop'}">${s.is_mobile?'📱 Mobile':'🖥️ Desktop'}</span></td>
               <td style="color:var(--muted)">${s.screen_w||'?'}×${s.screen_h||'?'}</td>
               <td style="color:var(--muted)">${esc(s.language||'—')}</td>
-              <td style="color:var(--blue)">${fmtMs(s.total_ms)}</td>
               <td style="color:var(--green)">${userViews}</td>
               <td style="color:var(--red)">${userHearts}</td>
               <td style="color:var(--muted)">${esc(s.device_model||'—')}</td>

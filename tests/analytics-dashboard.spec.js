@@ -107,37 +107,39 @@ test('Dispositivi & Browser: conteggio e ordinamento per frequenza', async ({ pa
   }
 });
 
-test('Tabella sessioni recenti: righe, views e hearts per sessione', async ({ page }) => {
+test('Tabella sessioni recenti: righe, views e hearts per sessione (niente colonna Durata)', async ({ page }) => {
   const rows = page.locator('.sessions-table tr');
   // +1 per la riga di intestazione
   await expect(rows).toHaveCount(expected.totalSessions + 1);
+  await expect(page.locator('.sessions-table th', { hasText: 'Durata' })).toHaveCount(0);
 
-  // s1: Chrome/Android, durata 42.0s, 2 views, 2 cuori (unica riga con 42.0s)
-  const s1Row = page.locator('.sessions-table tr', { hasText: '42.0s' });
+  // s1: unica riga con device_model impostato ("Pixel 8 Pro")
+  const s1Row = page.locator('.sessions-table tr', { hasText: 'Pixel 8 Pro' });
   await expect(s1Row).toContainText('Chrome');
   await expect(s1Row).toContainText('Android');
-  await expect(s1Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s1.views));
-  await expect(s1Row.locator('td').nth(9)).toHaveText(String(expected.perSession.s1.hearts));
-  await expect(s1Row.locator('td').nth(10)).toHaveText('Pixel 8 Pro');
-  await expect(s1Row.locator('td').nth(11)).toHaveText('Vodafone Italia');
+  await expect(s1Row.locator('td').nth(7)).toHaveText(String(expected.perSession.s1.views));
+  await expect(s1Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s1.hearts));
+  await expect(s1Row.locator('td').nth(9)).toHaveText('Pixel 8 Pro');
+  await expect(s1Row.locator('td').nth(10)).toHaveText('Vodafone Italia');
 
-  // s3: Firefox/macOS/desktop, durata 18.0s
-  const s3Row = page.locator('.sessions-table tr', { hasText: '18.0s' });
-  await expect(s3Row).toContainText('Firefox');
+  // s3: unica riga Firefox/macOS/desktop
+  const s3Row = page.locator('.sessions-table tr', { hasText: 'Firefox' });
   await expect(s3Row).toContainText('macOS');
   await expect(s3Row).toContainText('Desktop');
-  await expect(s3Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s3.views));
-  await expect(s3Row.locator('td').nth(9)).toHaveText(String(expected.perSession.s3.hearts));
+  await expect(s3Row.locator('td').nth(7)).toHaveText(String(expected.perSession.s3.views));
+  await expect(s3Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s3.hearts));
   // s3 non ha device_model/isp impostati nella fixture: deve mostrare il fallback
+  await expect(s3Row.locator('td').nth(9)).toHaveText('—');
   await expect(s3Row.locator('td').nth(10)).toHaveText('—');
-  await expect(s3Row.locator('td').nth(11)).toHaveText('—');
 
-  // s2 (Chrome/Android, 0s) e s4 (Chrome/iOS, 0s) condividono "0s": distinti per OS.
-  const s2Row = page.locator('.sessions-table tr').filter({ hasText: '0s' }).filter({ hasText: 'Android' });
-  await expect(s2Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s2.views));
-  await expect(s2Row.locator('td').nth(9)).toHaveText(String(expected.perSession.s2.hearts));
+  // s2 e s1 sono entrambe Chrome/Android: si distinguono per l'assenza di device_model.
+  const s2Row = page.locator('.sessions-table tr')
+    .filter({ hasText: 'Chrome' }).filter({ hasText: 'Android' }).filter({ hasNotText: 'Pixel 8 Pro' });
+  await expect(s2Row.locator('td').nth(7)).toHaveText(String(expected.perSession.s2.views));
+  await expect(s2Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s2.hearts));
 
-  const s4Row = page.locator('.sessions-table tr').filter({ hasText: '0s' }).filter({ hasText: 'iOS' }).filter({ hasText: 'Chrome' });
-  await expect(s4Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s4.views));
-  await expect(s4Row.locator('td').nth(9)).toHaveText(String(expected.perSession.s4.hearts));
+  // s4: unica riga Chrome/iOS (s5 è Safari/iOS)
+  const s4Row = page.locator('.sessions-table tr').filter({ hasText: 'Chrome' }).filter({ hasText: 'iOS' });
+  await expect(s4Row.locator('td').nth(7)).toHaveText(String(expected.perSession.s4.views));
+  await expect(s4Row.locator('td').nth(8)).toHaveText(String(expected.perSession.s4.hearts));
 });
