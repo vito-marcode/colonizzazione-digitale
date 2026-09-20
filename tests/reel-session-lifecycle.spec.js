@@ -34,16 +34,18 @@ test('crea una sessione con i campi del dispositivo mobile emulato (Pixel 7 / An
   expect(s.language).toBeTruthy();
 });
 
-test('include device_model (ripiego WebGL, niente Client Hints in questo ambiente) e isp (lookup ipapi.co mockato)', async ({ context, page }) => {
+test('device_model: SwiftShader (renderer software di Chromium headless) viene scartato correttamente; isp arriva da ipapi.co mockato', async ({ context, page }) => {
   const store = installSupabaseMock(context); // il mock intercetta anche ipapi.co
   await page.goto('/reel.html');
 
   await expect.poll(() => store.sessions.length).toBe(1);
   const s = store.sessions[0];
   // Playwright non spoofa navigator.userAgentData per il device emulato, quindi
-  // qui cade sempre sul ripiego WebGL: un renderer software (SwiftShader) in
-  // questo ambiente headless, un chip GPU vero su un telefono reale.
-  expect(s.device_model).toBeTruthy();
+  // qui cade sempre sul ripiego WebGL — che in Chromium headless è SwiftShader
+  // (renderer software, nessuna GPU reale): va scartato, non mostrato come se
+  // fosse un modello vero (scenari con un renderer GPU reale sono in
+  // reel-device-model.spec.js).
+  expect(s.device_model).toBeNull();
   expect(s.isp).toBe('AS0000 Test Network Provider');
 });
 

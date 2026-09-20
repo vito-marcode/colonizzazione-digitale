@@ -194,19 +194,38 @@ const SESSION = {
 // (es. "Pixel 8 Pro"); su iOS Safari non è recuperabile (Apple lo anonimizza
 // deliberatamente dal 2019). Come ripiego, il renderer GPU via WebGL è
 // spesso un indizio sul chip/modello anche quando lo User-Agent non lo dice.
+//
+// Alcuni browser orientati alla privacy (Brave in particolare) restituiscono
+// deliberatamente un valore "model" fasullo — es. letteralmente "Brave" —
+// come misura anti-fingerprinting: va scartato, non è un modello di device.
+const FAKE_MODEL_VALUES = /^(chrome|firefox|safari|edge|opera|brave|samsung ?(internet|browser)|vivaldi|yandex|uc ?browser)$/i;
+
+function isUsableModelString(s) {
+  return !!s && !FAKE_MODEL_VALUES.test(s.trim());
+}
+
 async function getDeviceModel() {
   if (navigator.userAgentData?.getHighEntropyValues) {
     try {
       const hints = await navigator.userAgentData.getHighEntropyValues(['model']);
-      if (hints.model) return hints.model;
+      if (isUsableModelString(hints.model)) return hints.model;
     } catch (e) { /* non supportato/negato, si passa al ripiego */ }
   }
   try {
     const canvas = document.createElement('canvas');
     const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    // Brave blocca di proposito questa extension (torna null): il ripiego
+    // si ferma qui invece di inventarsi un valore.
     const ext = gl?.getExtension('WEBGL_debug_renderer_info');
     const renderer = ext && gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
-    if (renderer) return renderer;
+    if (renderer && !/swiftshader|llvmpipe|software rasterizer/i.test(renderer)) {
+      // I renderer "SwiftShader"/"llvmpipe" sono rasterizzatori software (GPU
+      // disattivata): non dicono nulla sul dispositivo reale, si scartano.
+      // Le stringhe ANGLE sono verbose (es. "ANGLE (ARM, Mali-G57 MC2,
+      // OpenGL ES 3.2)"): estrarre solo il nome del chip le rende leggibili.
+      const angleMatch = renderer.match(/ANGLE \([^,]+,\s*([^,]+),/i);
+      return angleMatch ? angleMatch[1].trim() : renderer;
+    }
   } catch (e) { /* ignorato */ }
   return null;
 }

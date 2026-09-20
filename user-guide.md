@@ -38,7 +38,7 @@ Due modi:
 
 Ogni telefono che apre il reel genera una sessione anonima (un ID casuale, non collegato a nome/email) con questi dati:
 
-- **Sessione**: browser, sistema operativo, se è mobile o desktop, risoluzione schermo, lingua, durata totale della visita, modello del telefono (quando rilevabile — su iPhone non è possibile, Apple lo nasconde di proposito) e operatore/rete usata.
+- **Sessione**: browser, sistema operativo, se è mobile o desktop, risoluzione schermo, lingua, durata totale della visita, modello del telefono (quando rilevabile — su iPhone non è possibile, Apple lo nasconde di proposito, e anche browser attenti alla privacy come Brave lo bloccano deliberatamente) e operatore/rete usata.
 - **Per ogni slide vista**: quanto tempo ci si è fermati sopra (dwell time), se si è tornati indietro a rivederla, e — dalla posizione X del dito sullo schermo mentre si scorre — una stima di quale mano viene usata per tenere il telefono.
 - **Cuori**: quale slide, a che ora del giorno.
 - **Gesti di scroll**: avanti o indietro, veloce o lento.
