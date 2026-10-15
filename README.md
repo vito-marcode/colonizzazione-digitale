@@ -23,6 +23,8 @@ adminToken:       'colonizzazione-admin-2026', // cambia a piacere
 ### 3. Configura le slide del reel da `admin.html`
 Le slide non sono più un array in `config.js`: si gestiscono da `admin.html#<adminToken>` (vedi "Le pagine del progetto" in `user-guide.md`). Tre tipi disponibili — immagine, immagine con testo sovrapposto, video — tutti tramite URL esterno (nessun upload: per le immagini puoi comunque linkare i file in `images/` di questo stesso sito, es. `https://tuo-sito.netlify.app/images/slide-01.jpg`).
 
+Le immagini (non i video) passano automaticamente da [wsrv.nl](https://wsrv.nl) — un proxy di resize/compressione gratuito, senza API key — per evitare di servire ai telefoni l'immagine incollata alla sua risoluzione originale (l'admin può linkare anche una foto da 4000×3000px: verrà ridimensionata e compressa al volo, senza ingrandire quelle già piccole).
+
 ### 4. Deploy su Netlify
 1. Push su GitHub (già fatto)
 2. [netlify.com](https://netlify.com) → "Import from Git" → seleziona questo repo

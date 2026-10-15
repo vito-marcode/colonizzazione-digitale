@@ -65,6 +65,19 @@ function installSupabaseMock(context, { rlsMode = 'broken', seedSlides = true } 
     body: JSON.stringify({ org: 'AS0000 Test Network Provider' }),
   }));
 
+  // reel.html/admin.html passano le immagini da wsrv.nl (proxy di resize/
+  // compressione, terze parti): mockato con un pixel trasparente, stesso
+  // motivo di ipapi.co — i test restano offline e deterministici.
+  const TRANSPARENT_PNG_1PX = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64'
+  );
+  context.route('https://wsrv.nl/**', (route) => route.fulfill({
+    status: 200,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'image/png' },
+    body: TRANSPARENT_PNG_1PX,
+  }));
+
   context.route('**/rest/v1/**', async (route) => {
     const req = route.request();
     const method = req.method();

@@ -172,6 +172,24 @@ const CFG = window.APP_CONFIG;
 let SLIDES = []; // popolato da fetchSlides() in init(), prima di renderSlides()
 let N = 0;
 
+// L'admin incolla URL esterni, spesso foto a piena risoluzione (4000x3000px
+// o più) mai pensate per uno schermo di telefono: le facciamo passare da
+// wsrv.nl (proxy di resize/compressione immagini gratuito, senza API key —
+// https://wsrv.nl), che restituisce una versione ridimensionata/compressa
+// dello stesso URL. Niente upload da gestire noi, resta tutto "solo link".
+function optimizedImageUrl(url, { width = 900, quality = 80 } = {}) {
+  if (!url) return url;
+  let absolute;
+  try {
+    absolute = new URL(url, CFG.siteUrl).href;
+  } catch (e) {
+    return url; // url non valido: meglio mostrarlo com'è che rompere la slide
+  }
+  // we=1 (without enlargement): non ingrandisce immagini già più piccole
+  // della larghezza richiesta, le lascia alla dimensione originale.
+  return `https://wsrv.nl/?url=${encodeURIComponent(absolute)}&w=${width}&q=${quality}&output=webp&we=1`;
+}
+
 // ═══════════════════════════════════════════════════════════
 // SUPABASE
 // ═══════════════════════════════════════════════════════════
@@ -330,7 +348,7 @@ function renderSlides() {
     if (slide.type === 'image') {
       const img = document.createElement('img');
       img.className = 'slide-image';
-      img.src = slide.image_url;
+      img.src = optimizedImageUrl(slide.image_url);
       img.alt = slide.label || '';
       img.draggable = false;
       div.appendChild(img);
@@ -351,7 +369,7 @@ function renderSlides() {
     } else if (slide.type === 'image_text') {
       div.classList.add('slide-text-bg');
       div.innerHTML = `
-        <img class="slide-bg-image" src="${slide.image_url}" alt="">
+        <img class="slide-bg-image" src="${optimizedImageUrl(slide.image_url)}" alt="">
         <div class="slide-text">
           ${slide.eyebrow ? `<div class="slide-eyebrow" style="color:${slide.accent||'#fff'}">${slide.eyebrow}</div>` : ''}
           <div class="slide-title" style="color:${slide.accent||'#fff'}">${(slide.title||'').replace(/\n/g,'<br>')}</div>
@@ -694,7 +712,7 @@ async function init() {
   // Preload: sia 'image' semplice sia lo sfondo di 'image_text' hanno un
   // image_url da precaricare; i video usano il preload nativo del tag <video>.
   SLIDES.filter(s => s.type === 'image' || s.type === 'image_text').forEach(s => {
-    const img = new Image(); img.src = s.image_url;
+    const img = new Image(); img.src = optimizedImageUrl(s.image_url);
   });
 }
 

@@ -19,7 +19,9 @@ test('slide "image_text": sfondo + testo sovrapposto renderizzati correttamente'
 
   const slide = page.locator('.slide').first();
   await expect(slide).toHaveClass(/slide-text-bg/);
-  await expect(slide.locator('img.slide-bg-image')).toHaveAttribute('src', 'images/slide-01.jpg');
+  // L'url passa dal proxy wsrv.nl per il resize/compressione: contiene
+  // ancora l'url originale (url-encoded) come parametro.
+  await expect(slide.locator('img.slide-bg-image')).toHaveAttribute('src', /wsrv\.nl.*slide-01\.jpg/);
   await expect(slide.locator('.slide-eyebrow')).toHaveText('EDWARD SNOWDEN');
   await expect(slide.locator('.slide-title')).toHaveText('La privacy non è un\'opzione');
   await expect(slide.locator('.slide-body')).toHaveText('I dati sono il nuovo petrolio.');

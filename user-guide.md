@@ -27,6 +27,8 @@ Apri `admin.html#<adminToken>` per:
 - **Testi schermo QR**: cambiare l'eyebrow, il sottotitolo e il titolo della pagina che compaiono sopra/sotto il QR code sul proiettore.
 - **Slide del reel**: aggiungere una nuova slide scegliendo tra tre tipi — **immagine** (solo una foto), **immagine con testo sovrapposto** (una foto di sfondo più una citazione/titolo scritti sopra) o **video** (parte in automatico, senza audio, in loop, quando lo studente ci arriva sopra). In tutti e tre i casi va incollato un URL — niente caricamento di file: per un'immagine puoi linkare direttamente un file già presente in `images/` su questo stesso sito (es. `https://presentazio.devmarco.it/images/slide-01.jpg`), oppure un'immagine/video ospitati altrove. Dalla stessa pagina puoi modificare, riordinare (frecce su/giù) o eliminare una slide esistente.
 
+  Non devi preoccuparti della risoluzione dell'immagine che incolli: viene automaticamente ridimensionata e compressa per il telefono (non succede per i video, che vanno quindi scelti già di dimensione ragionevole).
+
 Nota: eliminando una slide, i dati già raccolti su quella slide (tempo di permanenza, cuori) restano nel database e continuano a far parte dei totali in dashboard — semplicemente non comparirà più come card separata.
 
 ### Impostazioni dei cuori (schermo principale)
