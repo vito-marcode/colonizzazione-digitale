@@ -155,3 +155,23 @@ test('anteprima mobile: mostra la slide con i valori correnti del form, anche no
   await page.click('text=Chiudi anteprima');
   await expect(page.locator('#preview-modal')).not.toHaveClass(/visible/);
 });
+
+test('anteprima mobile dalla lista: nessun bisogno di aprire prima il form di modifica', async ({ page }) => {
+  await page.click('text=+ Nuova slide');
+  await page.selectOption('#slide-type', 'image_text');
+  await page.fill('#slide-label', 'Salvata');
+  await page.fill('#slide-image-url-2', 'https://example.com/bg.jpg');
+  await page.fill('#slide-title', 'Titolo salvato');
+  await page.fill('#slide-accent', '#ef4444');
+  await page.click('text=Salva slide');
+  await expect(page.locator('.slide-row')).toHaveCount(1);
+
+  // Il form è chiuso: l'anteprima deve comunque mostrare i dati della slide
+  // appena salvata, letti dalla lista e non dal form (che è vuoto/chiuso).
+  await expect(page.locator('#slide-form-modal')).not.toHaveClass(/visible/);
+  await page.click('.slide-row button[title="Anteprima mobile"]');
+  await expect(page.locator('#preview-modal')).toHaveClass(/visible/);
+  await expect(page.locator('#preview-slide .slide-title')).toHaveText('Titolo salvato');
+  const color = await page.locator('#preview-slide .slide-title').evaluate((el) => getComputedStyle(el).color);
+  expect(color).toBe('rgb(239, 68, 68)'); // #ef4444
+});

@@ -66,7 +66,7 @@
 
   /* ── Slides list ──────────────────────────────────────── */
   .slide-row {
-    display:flex; align-items:center; gap:.8rem;
+    display:flex; flex-wrap:wrap; align-items:center; gap:.6rem .8rem;
     background:var(--surface); border:1px solid var(--border);
     border-radius:8px; padding:.7rem 1rem; margin-bottom:.6rem;
   }
@@ -84,8 +84,12 @@
     padding:.15rem .5rem; border-radius:20px; background:rgba(167,139,250,.15);
     color:var(--purple); flex-shrink:0;
   }
-  .slide-label { flex:1; font-size:.85rem; }
-  .slide-actions { display:flex; gap:.3rem; flex-shrink:0; }
+  /* min-width:80px invece di flex:1 puro: lascia che l'etichetta vada a capo
+     su una riga tutta sua quando lo spazio non basta, invece di schiacciarsi
+     a oltranza e spingere le azioni fuori dalla card (causa di overlap/scroll
+     orizzontale sugli schermi stretti). */
+  .slide-label { flex:1 1 80px; min-width:80px; font-size:.85rem; word-break:break-word; }
+  .slide-actions { display:flex; flex-wrap:wrap; gap:.3rem; flex-shrink:0; margin-left:auto; }
   .slide-actions button {
     background:var(--card); border:1px solid var(--border); color:var(--text);
     padding:.3rem .6rem; border-radius:6px; cursor:pointer; font-size:.75rem;
@@ -119,9 +123,12 @@
     border:2px solid var(--border); cursor:pointer; padding:0;
   }
   .accent-popover {
-    display:none; position:absolute; top:42px; right:0; z-index:10;
+    /* Si apre VERSO L'ALTO (bottom, non top): il campo "Colore testo" è
+       l'ultimo del form prima dei pulsanti Salva/Anteprima/Annulla — aprendo
+       verso il basso la palette finirebbe quasi sopra quei pulsanti. */
+    display:none; position:absolute; bottom:42px; right:0; z-index:10;
     background:var(--card); border:1px solid var(--border); border-radius:10px;
-    padding:.6rem; width:168px; flex-wrap:wrap; gap:.4rem;
+    padding:.6rem; width:168px; max-width:70vw; flex-wrap:wrap; gap:.4rem;
     box-shadow:0 10px 30px rgba(0,0,0,.5);
   }
   .accent-popover.visible { display:flex; }
@@ -139,7 +146,11 @@
   }
   #preview-modal.visible { display:flex; }
   .phone-frame {
-    width:280px; height:600px; border-radius:36px; overflow:hidden;
+    /* min(280px, 80vw) invece di una larghezza fissa: non deborda mai dalla
+       finestra su un telefono stretto. aspect-ratio al posto di un'altezza
+       fissa, per restare proporzionato qualunque sia la larghezza risolta. */
+    width:min(280px, 80vw); aspect-ratio:9/19.5;
+    border-radius:36px; overflow:hidden;
     border:8px solid #222; background:#000; position:relative;
     box-shadow:0 20px 60px rgba(0,0,0,.6);
   }
@@ -168,6 +179,15 @@
   .phone-frame .preview-empty {
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     color:var(--muted); font-size:.8rem; text-align:center; padding:2rem;
+  }
+
+  /* ── Responsive: telefono ─────────────────────────────────── */
+  @media (max-width: 480px) {
+    #admin-panel { padding:1rem; }
+    .section { padding:1rem; }
+    .header-title { font-size:1.3rem; }
+    .modal-box { width:94%; padding:1rem; }
+    .btn { padding:.6rem 1rem; margin-right:.3rem; }
   }
 </style>
 </head>
@@ -403,6 +423,7 @@ function renderSlidesList() {
         <div class="slide-actions">
           <button onclick="moveSlide(${s.id},'up')" ${i === 0 ? 'disabled' : ''} title="Sposta su">▲</button>
           <button onclick="moveSlide(${s.id},'down')" ${i === slidesCache.length - 1 ? 'disabled' : ''} title="Sposta giù">▼</button>
+          <button onclick="previewSlideFromList(${s.id})" title="Anteprima mobile">👁</button>
           <button onclick="editSlide(${s.id})" title="Modifica">✎</button>
           <button onclick="deleteSlide(${s.id})" title="Elimina">🗑</button>
         </div>
@@ -558,10 +579,12 @@ async function moveSlide(id, dir) {
 
 // ── Anteprima mobile ────────────────────────────────────────────
 // Renderizza, dentro una cornice a forma di telefono, lo stesso HTML/CSS
-// che reel.html userebbe per questa slide con i valori attuali del form
-// (anche non ancora salvati) — stessa logica di renderSlides() in reel.html.
-function openPreview() {
-  const slide = readSlideForm();
+// che reel.html userebbe per questa slide — stessa logica di renderSlides()
+// in reel.html. Senza argomenti legge i valori attuali del form (anche non
+// ancora salvati, usato dal pulsante dentro il form); da una slide già
+// salvata nella lista, si passa direttamente la riga (vedi previewSlideFromList).
+function openPreview(slideOverride) {
+  const slide = slideOverride || readSlideForm();
   const el = document.getElementById('preview-slide');
   el.className = 'slide';
   el.innerHTML = '';
@@ -602,6 +625,12 @@ function closePreview() {
   // Ferma un eventuale video in riproduzione invece di lasciarlo andare in background
   const video = document.querySelector('#preview-slide video');
   if (video) video.pause();
+}
+
+// Anteprima diretta dalla lista, senza passare dal form di modifica.
+function previewSlideFromList(id) {
+  const s = slidesCache.find(x => x.id === id);
+  if (s) openPreview(s);
 }
 </script>
 </body>
