@@ -111,3 +111,47 @@ test('salva i testi dello schermo QR: il mock (site_config) viene aggiornato', a
   await expect(page.locator('#cfg-eyebrow')).toHaveValue('Nuovo eyebrow di prova');
   await expect(page.locator('#cfg-subtitle')).toHaveValue('Nuovo sottotitolo di prova');
 });
+
+test('selettore colore: il pallino apre la palette, scegliere un colore aggiorna il campo e il pallino', async ({ page }) => {
+  await page.click('text=+ Nuova slide');
+  await page.selectOption('#slide-type', 'image_text');
+
+  await expect(page.locator('#accent-popover')).not.toHaveClass(/visible/);
+  await page.click('#accent-swatch');
+  await expect(page.locator('#accent-popover')).toHaveClass(/visible/);
+
+  await page.click('.accent-swatch-option[title="#ef4444"]');
+  await expect(page.locator('#slide-accent')).toHaveValue('#ef4444');
+  await expect(page.locator('#accent-popover')).not.toHaveClass(/visible/); // si chiude dopo la scelta
+
+  const swatchBg = await page.locator('#accent-swatch').evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(swatchBg).toBe('rgb(239, 68, 68)'); // #ef4444 riflesso nel pallino
+
+  // Salvando, il colore scelto dalla palette finisce davvero nel DB
+  await page.fill('#slide-image-url-2', 'https://example.com/bg.jpg');
+  await page.click('text=Salva slide');
+  await expect(page.locator('.slide-row')).toHaveCount(1);
+});
+
+test('anteprima mobile: mostra la slide con i valori correnti del form, anche non salvati', async ({ page }) => {
+  await page.click('text=+ Nuova slide');
+  await page.selectOption('#slide-type', 'image_text');
+  await page.fill('#slide-image-url-2', 'https://example.com/bg.jpg');
+  await page.fill('#slide-title', 'Titolo di anteprima');
+  await page.fill('#slide-body', 'Corpo di anteprima');
+  await page.fill('#slide-accent', '#38bdf8');
+
+  await expect(page.locator('#preview-modal')).not.toHaveClass(/visible/);
+  await page.click('text=👁 Anteprima mobile');
+  await expect(page.locator('#preview-modal')).toHaveClass(/visible/);
+
+  const preview = page.locator('#preview-slide');
+  await expect(preview).toHaveClass(/slide-text-bg/);
+  await expect(preview.locator('.slide-title')).toHaveText('Titolo di anteprima');
+  await expect(preview.locator('.slide-body')).toHaveText('Corpo di anteprima');
+  const color = await preview.locator('.slide-title').evaluate((el) => getComputedStyle(el).color);
+  expect(color).toBe('rgb(56, 189, 248)'); // #38bdf8, preso dal form non ancora salvato
+
+  await page.click('text=Chiudi anteprima');
+  await expect(page.locator('#preview-modal')).not.toHaveClass(/visible/);
+});

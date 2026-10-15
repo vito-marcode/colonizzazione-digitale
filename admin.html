@@ -110,6 +110,65 @@
   .msg { font-size:.8rem; margin-top:.8rem; }
   .msg-error { color:var(--red); }
   .msg-ok { color:var(--green); }
+
+  /* ── Selettore colore (pallino + palette preimpostata) ───── */
+  .accent-picker-row { display:flex; align-items:center; gap:.5rem; position:relative; }
+  .accent-picker-row input[type="text"] { flex:1; }
+  .accent-swatch {
+    width:34px; height:34px; border-radius:50%; flex-shrink:0;
+    border:2px solid var(--border); cursor:pointer; padding:0;
+  }
+  .accent-popover {
+    display:none; position:absolute; top:42px; right:0; z-index:10;
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:.6rem; width:168px; flex-wrap:wrap; gap:.4rem;
+    box-shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+  .accent-popover.visible { display:flex; }
+  .accent-swatch-option {
+    width:26px; height:26px; border-radius:50%; cursor:pointer;
+    border:1px solid var(--border); padding:0;
+  }
+  .accent-swatch-option:hover { border-color:var(--blue); }
+
+  /* ── Anteprima mobile ─────────────────────────────────────── */
+  #preview-modal {
+    display:none; position:fixed; inset:0; z-index:2000;
+    background:rgba(0,0,0,.85); align-items:center; justify-content:center;
+    flex-direction:column; gap:1rem;
+  }
+  #preview-modal.visible { display:flex; }
+  .phone-frame {
+    width:280px; height:600px; border-radius:36px; overflow:hidden;
+    border:8px solid #222; background:#000; position:relative;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+  }
+  .phone-frame .slide { position:absolute; inset:0; height:100%; }
+
+  /* Copie minime del rendering di reel.html, per un'anteprima fedele */
+  .phone-frame .slide-image { width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+  .phone-frame .slide-text-bg { position:relative; background:#000; width:100%; height:100%; }
+  .phone-frame .slide-bg-image { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; }
+  .phone-frame .slide-text-bg::after {
+    content:''; position:absolute; inset:0; z-index:1;
+    background:linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,.55));
+  }
+  .phone-frame .slide-text {
+    position:relative; z-index:2; width:100%; height:100%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:1.6rem 1.2rem; text-align:center; font-family:'Inter',sans-serif;
+  }
+  .phone-frame .slide-eyebrow { font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; margin-bottom:.9rem; opacity:.9; }
+  .phone-frame .slide-title { font-size:1.5rem; font-weight:900; line-height:1.15; margin-bottom:1rem; white-space:pre-line; }
+  .phone-frame .slide-body { font-size:.85rem; line-height:1.5; opacity:.95; max-width:220px; }
+  .phone-frame .slide-footer {
+    position:absolute; bottom:1.2rem; left:0; right:0; z-index:2;
+    text-align:center; font-size:.6rem; opacity:.6; font-style:italic; padding:0 1.5rem;
+  }
+  .phone-frame .preview-empty {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:.8rem; text-align:center; padding:2rem;
+  }
 </style>
 </head>
 <body>
@@ -190,7 +249,11 @@
       <label>Footer</label>
       <input type="text" id="slide-footer" placeholder="es. fonte, nota">
       <label>Colore testo</label>
-      <input type="text" id="slide-accent" placeholder="#ffffff">
+      <div class="accent-picker-row">
+        <input type="text" id="slide-accent" placeholder="#ffffff" oninput="updateAccentSwatch()">
+        <button type="button" class="accent-swatch" id="accent-swatch" onclick="toggleAccentPicker()" title="Scegli colore"></button>
+        <div class="accent-popover" id="accent-popover"></div>
+      </div>
     </div>
 
     <div id="fields-video" style="display:none">
@@ -199,9 +262,16 @@
     </div>
 
     <button class="btn" onclick="saveSlide()">Salva slide</button>
+    <button class="btn btn-secondary" onclick="openPreview()">👁 Anteprima mobile</button>
     <button class="btn btn-secondary" onclick="closeSlideForm()">Annulla</button>
     <div id="slide-form-msg" class="msg"></div>
   </div>
+</div>
+
+<!-- Anteprima mobile -->
+<div id="preview-modal">
+  <div class="phone-frame"><div id="preview-slide" class="slide"></div></div>
+  <button class="btn btn-secondary" onclick="closePreview()">Chiudi anteprima</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -224,6 +294,26 @@ function optimizedImageUrl(url, { width = 100, quality = 70 } = {}) {
     return url;
   }
   return `https://wsrv.nl/?url=${encodeURIComponent(absolute)}&w=${width}&q=${quality}&output=webp&we=1`;
+}
+
+// Stessa logica di reel.html (duplicata qui: niente modulo condiviso in un
+// progetto senza build step): un'ombra/contorno a contrasto col colore
+// scelto, per restare leggibile su uno sfondo foto non controllato.
+function contrastTextShadow(hexColor) {
+  const hex = (hexColor || '#ffffff').replace('#', '');
+  const full = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex;
+  const r = parseInt(full.substring(0, 2), 16);
+  const g = parseInt(full.substring(2, 4), 16);
+  const b = parseInt(full.substring(4, 6), 16);
+  const brightness = (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b))
+    ? (r * 299 + g * 587 + b * 114) / 1000
+    : 255;
+  const shadow = brightness > 150 ? '0,0,0' : '255,255,255';
+  return `0 0 3px rgba(${shadow},.9), 0 0 6px rgba(${shadow},.7), 1px 1px 2px rgba(${shadow},.9)`;
+}
+
+function slideTextStyle(accent) {
+  return `color:${accent || '#fff'};text-shadow:${contrastTextShadow(accent)}`;
 }
 
 // ── Auth ──────────────────────────────────────────────────────
@@ -329,6 +419,37 @@ function onTypeChange() {
   document.getElementById('fields-video').style.display      = type === 'video' ? 'block' : 'none';
 }
 
+// ── Selettore colore (pallino + palette preimpostata) ──────────
+const ACCENT_PRESETS = ['#ffffff', '#000000', '#38bdf8', '#ef4444', '#fbbf24', '#22c55e', '#a78bfa', '#f3f4f6'];
+
+function renderAccentPicker() {
+  document.getElementById('accent-popover').innerHTML = ACCENT_PRESETS.map(c =>
+    `<button type="button" class="accent-swatch-option" style="background:${c}" title="${c}" onclick="selectAccent('${c}')"></button>`
+  ).join('');
+}
+
+function updateAccentSwatch() {
+  const val = document.getElementById('slide-accent').value.trim() || '#ffffff';
+  document.getElementById('accent-swatch').style.background = val;
+}
+
+function toggleAccentPicker() {
+  document.getElementById('accent-popover').classList.toggle('visible');
+}
+
+function selectAccent(color) {
+  document.getElementById('slide-accent').value = color;
+  updateAccentSwatch();
+  document.getElementById('accent-popover').classList.remove('visible');
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.accent-picker-row')) {
+    document.getElementById('accent-popover').classList.remove('visible');
+  }
+});
+renderAccentPicker();
+
 function openSlideForm() {
   editingSlideId = null;
   document.getElementById('slide-form-title').textContent = 'Nuova slide';
@@ -337,6 +458,7 @@ function openSlideForm() {
     .forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('slide-form-msg').textContent = '';
   onTypeChange();
+  updateAccentSwatch();
   document.getElementById('slide-form-modal').classList.add('visible');
 }
 
@@ -357,6 +479,7 @@ function editSlide(id) {
   document.getElementById('slide-video-url').value = s.video_url || '';
   document.getElementById('slide-form-msg').textContent = '';
   onTypeChange();
+  updateAccentSwatch();
   document.getElementById('slide-form-modal').classList.add('visible');
 }
 
@@ -364,9 +487,9 @@ function closeSlideForm() {
   document.getElementById('slide-form-modal').classList.remove('visible');
 }
 
-async function saveSlide() {
-  const msg = document.getElementById('slide-form-msg');
-  msg.textContent = '';
+// Lettura dei campi del form, condivisa tra salvataggio e anteprima — così
+// non possono disallinearsi tra loro.
+function readSlideForm() {
   const type = document.getElementById('slide-type').value;
   const payload = { type, label: document.getElementById('slide-label').value.trim() || null };
 
@@ -382,6 +505,13 @@ async function saveSlide() {
   } else if (type === 'video') {
     payload.video_url = document.getElementById('slide-video-url').value.trim() || null;
   }
+  return payload;
+}
+
+async function saveSlide() {
+  const msg = document.getElementById('slide-form-msg');
+  msg.textContent = '';
+  const payload = readSlideForm();
 
   if (editingSlideId) {
     const { error } = await sb.from('slides').update(payload).eq('id', editingSlideId);
@@ -424,6 +554,54 @@ async function moveSlide(id, dir) {
   ]);
   if (e1 || e2) { alert('Errore riordino: ' + (e1 || e2).message); return; }
   await loadSlides();
+}
+
+// ── Anteprima mobile ────────────────────────────────────────────
+// Renderizza, dentro una cornice a forma di telefono, lo stesso HTML/CSS
+// che reel.html userebbe per questa slide con i valori attuali del form
+// (anche non ancora salvati) — stessa logica di renderSlides() in reel.html.
+function openPreview() {
+  const slide = readSlideForm();
+  const el = document.getElementById('preview-slide');
+  el.className = 'slide';
+  el.innerHTML = '';
+
+  if (slide.type === 'image') {
+    if (slide.image_url) {
+      el.innerHTML = `<img class="slide-image" src="${esc(optimizedImageUrl(slide.image_url, { width: 560 }))}" alt="">`;
+    } else {
+      el.innerHTML = '<div class="preview-empty">Inserisci un URL immagine per vedere l\'anteprima.</div>';
+    }
+
+  } else if (slide.type === 'video') {
+    if (slide.video_url) {
+      el.innerHTML = `<video class="slide-image" src="${esc(slide.video_url)}" autoplay muted loop playsinline webkit-playsinline="true"></video>`;
+    } else {
+      el.innerHTML = '<div class="preview-empty">Inserisci un URL video per vedere l\'anteprima.</div>';
+    }
+
+  } else if (slide.type === 'image_text') {
+    el.classList.add('slide-text-bg');
+    const style = slideTextStyle(slide.accent);
+    el.innerHTML = `
+      ${slide.image_url ? `<img class="slide-bg-image" src="${esc(optimizedImageUrl(slide.image_url, { width: 560 }))}" alt="">` : ''}
+      <div class="slide-text">
+        ${slide.eyebrow ? `<div class="slide-eyebrow" style="${style}">${esc(slide.eyebrow)}</div>` : ''}
+        ${slide.title ? `<div class="slide-title" style="${style}">${esc(slide.title).replace(/\n/g,'<br>')}</div>` : ''}
+        ${slide.body ? `<div class="slide-body" style="${style}">${esc(slide.body)}</div>` : ''}
+      </div>
+      ${slide.footer ? `<div class="slide-footer" style="${style}">${esc(slide.footer)}</div>` : ''}
+    `;
+  }
+
+  document.getElementById('preview-modal').classList.add('visible');
+}
+
+function closePreview() {
+  document.getElementById('preview-modal').classList.remove('visible');
+  // Ferma un eventuale video in riproduzione invece di lasciarlo andare in background
+  const video = document.querySelector('#preview-slide video');
+  if (video) video.pause();
 }
 </script>
 </body>

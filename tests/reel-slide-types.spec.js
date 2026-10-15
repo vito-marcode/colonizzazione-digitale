@@ -26,6 +26,37 @@ test('slide "image_text": sfondo + testo sovrapposto renderizzati correttamente'
   await expect(slide.locator('.slide-title')).toHaveText('La privacy non è un\'opzione');
   await expect(slide.locator('.slide-body')).toHaveText('I dati sono il nuovo petrolio.');
   await expect(slide.locator('.slide-footer')).toHaveText('fonte: discorso 2015');
+
+  // BUG NOTO corretto: corpo e footer non ricevevano affatto il colore
+  // scelto (solo eyebrow/titolo lo avevano). Ora tutti e 4 devono avere lo
+  // stesso colore dell'accent scelto (#38bdf8), più un'ombra di contrasto
+  // per restare leggibili su uno sfondo foto non controllato.
+  for (const sel of ['.slide-eyebrow', '.slide-title', '.slide-body', '.slide-footer']) {
+    const color = await slide.locator(sel).evaluate((el) => getComputedStyle(el).color);
+    expect(color).toBe('rgb(56, 189, 248)'); // #38bdf8
+    const shadow = await slide.locator(sel).evaluate((el) => getComputedStyle(el).textShadow);
+    expect(shadow).not.toBe('none');
+  }
+});
+
+test('colore testo chiaro -> ombra scura; colore testo scuro -> ombra chiara', async ({ context, page }) => {
+  const store = installSupabaseMock(context, { seedSlides: false });
+  store.slides.push(
+    { id: 303, position: 0, type: 'image_text', label: 'Chiaro', image_url: 'images/slide-01.jpg', title: 'Bianco', accent: '#ffffff' },
+    { id: 304, position: 1, type: 'image_text', label: 'Scuro', image_url: 'images/slide-01.jpg', title: 'Nero', accent: '#000000' },
+  );
+
+  await page.goto('/reel.html');
+  await expect.poll(() => store.sessions.length).toBe(1);
+
+  const lightTitle = page.locator('.slide').nth(0).locator('.slide-title');
+  const darkTitle = page.locator('.slide').nth(1).locator('.slide-title');
+
+  const lightShadow = await lightTitle.evaluate((el) => getComputedStyle(el).textShadow);
+  const darkShadow = await darkTitle.evaluate((el) => getComputedStyle(el).textShadow);
+
+  expect(lightShadow).toContain('0, 0, 0'); // testo bianco -> ombra nera
+  expect(darkShadow).toContain('255, 255, 255'); // testo nero -> ombra bianca
 });
 
 test('slide "video": tag <video> con autoplay silenzioso inline', async ({ context, page }) => {

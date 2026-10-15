@@ -190,6 +190,29 @@ function optimizedImageUrl(url, { width = 900, quality = 80 } = {}) {
   return `https://wsrv.nl/?url=${encodeURIComponent(absolute)}&w=${width}&q=${quality}&output=webp&we=1`;
 }
 
+// Il testo sovrapposto di una slide 'image_text' finisce su uno sfondo non
+// controllato (qualunque foto incolli l'admin): un'ombra/contorno a
+// contrasto con il colore scelto mantiene il testo leggibile a prescindere.
+// Testo chiaro -> contorno scuro; testo scuro -> contorno chiaro.
+function contrastTextShadow(hexColor) {
+  const hex = (hexColor || '#ffffff').replace('#', '');
+  const full = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex;
+  const r = parseInt(full.substring(0, 2), 16);
+  const g = parseInt(full.substring(2, 4), 16);
+  const b = parseInt(full.substring(4, 6), 16);
+  const brightness = (Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b))
+    ? (r * 299 + g * 587 + b * 114) / 1000
+    : 255; // colore non valido: assume testo chiaro, contorno scuro di default
+  const shadow = brightness > 150 ? '0,0,0' : '255,255,255';
+  return `0 0 3px rgba(${shadow},.9), 0 0 6px rgba(${shadow},.7), 1px 1px 2px rgba(${shadow},.9)`;
+}
+
+// Costruisce lo stile inline comune a eyebrow/titolo/corpo/footer di una
+// slide con testo: colore scelto dall'admin + l'ombra di contrasto sopra.
+function slideTextStyle(accent) {
+  return `color:${accent || '#fff'};text-shadow:${contrastTextShadow(accent)}`;
+}
+
 // ═══════════════════════════════════════════════════════════
 // SUPABASE
 // ═══════════════════════════════════════════════════════════
@@ -368,27 +391,29 @@ function renderSlides() {
 
     } else if (slide.type === 'image_text') {
       div.classList.add('slide-text-bg');
+      const style = slideTextStyle(slide.accent);
       div.innerHTML = `
         <img class="slide-bg-image" src="${optimizedImageUrl(slide.image_url)}" alt="">
         <div class="slide-text">
-          ${slide.eyebrow ? `<div class="slide-eyebrow" style="color:${slide.accent||'#fff'}">${slide.eyebrow}</div>` : ''}
-          <div class="slide-title" style="color:${slide.accent||'#fff'}">${(slide.title||'').replace(/\n/g,'<br>')}</div>
-          ${slide.body ? `<div class="slide-body">${slide.body}</div>` : ''}
+          ${slide.eyebrow ? `<div class="slide-eyebrow" style="${style}">${slide.eyebrow}</div>` : ''}
+          <div class="slide-title" style="${style}">${(slide.title||'').replace(/\n/g,'<br>')}</div>
+          ${slide.body ? `<div class="slide-body" style="${style}">${slide.body}</div>` : ''}
         </div>
-        ${slide.footer ? `<div class="slide-footer">${slide.footer}</div>` : ''}
+        ${slide.footer ? `<div class="slide-footer" style="${style}">${slide.footer}</div>` : ''}
       `;
 
     } else {
       // Ramo legacy 'text' (sfondo a tinta unita): mantenuto solo per
       // compatibilità a ritroso, non più raggiungibile da admin.html.
       div.style.background = slide.bg || '#0d0d0d';
+      const style = slideTextStyle(slide.accent);
       div.innerHTML = `
         <div class="slide-text">
-          ${slide.eyebrow ? `<div class="slide-eyebrow" style="color:${slide.accent||'#fff'}">${slide.eyebrow}</div>` : ''}
-          <div class="slide-title" style="color:${slide.accent||'#fff'}">${(slide.title||'').replace(/\n/g,'<br>')}</div>
-          ${slide.body ? `<div class="slide-body">${slide.body}</div>` : ''}
+          ${slide.eyebrow ? `<div class="slide-eyebrow" style="${style}">${slide.eyebrow}</div>` : ''}
+          <div class="slide-title" style="${style}">${(slide.title||'').replace(/\n/g,'<br>')}</div>
+          ${slide.body ? `<div class="slide-body" style="${style}">${slide.body}</div>` : ''}
         </div>
-        ${slide.footer ? `<div class="slide-footer">${slide.footer}</div>` : ''}
+        ${slide.footer ? `<div class="slide-footer" style="${style}">${slide.footer}</div>` : ''}
       `;
     }
     reelEl.appendChild(div);
