@@ -78,6 +78,33 @@ function installSupabaseMock(context, { rlsMode = 'broken', seedSlides = true } 
     body: TRANSPARENT_PNG_1PX,
   }));
 
+  // admin.html chiama la Netlify Function che genera l'URL di upload firmato
+  // verso Cubbit, poi fa il PUT diretto su quell'URL: mockati entrambi, la
+  // vera funzione (credenziali reali, SDK AWS) non è testabile offline — la
+  // copre scripts/cubbit-upload-probe.mjs contro l'ambiente reale.
+  context.route('**/.netlify/functions/get-upload-url', (route) => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS_HEADERS, body: '' });
+    const payload = req.postDataJSON() || {};
+    if (payload.adminToken !== 'cesolouncapoclan') {
+      return route.fulfill({ status: 401, headers: CORS_HEADERS, body: JSON.stringify({ error: 'non autorizzato' }) });
+    }
+    const key = `slides/mock-${Date.now()}-${(payload.filename || 'file').replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
+    return route.fulfill({
+      status: 200,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        uploadUrl: `https://fake-cubbit-upload.test/${key}?signature=mock`,
+        publicUrl: `https://fake-cubbit-public.test/${key}`,
+      }),
+    });
+  });
+  context.route('https://fake-cubbit-upload.test/**', (route) => {
+    const req = route.request();
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS_HEADERS, body: '' });
+    return route.fulfill({ status: 200, headers: CORS_HEADERS, body: '' });
+  });
+
   context.route('**/rest/v1/**', async (route) => {
     const req = route.request();
     const method = req.method();

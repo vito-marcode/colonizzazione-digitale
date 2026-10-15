@@ -25,9 +25,12 @@ Il link della dashboard qui sopra include già la password (`colonizzazione2026`
 ### Gestire le slide del reel (admin.html)
 Apri `admin.html#<adminToken>` per:
 - **Testi schermo QR**: cambiare l'eyebrow, il sottotitolo e il titolo della pagina che compaiono sopra/sotto il QR code sul proiettore.
-- **Slide del reel**: aggiungere una nuova slide scegliendo tra tre tipi — **immagine** (solo una foto), **immagine con testo sovrapposto** (una foto di sfondo più una citazione/titolo scritti sopra) o **video** (parte in automatico, senza audio, in loop, quando lo studente ci arriva sopra). In tutti e tre i casi va incollato un URL — niente caricamento di file: per un'immagine puoi linkare direttamente un file già presente in `images/` su questo stesso sito (es. `https://presentazio.devmarco.it/images/slide-01.jpg`), oppure un'immagine/video ospitati altrove. Dalla stessa pagina puoi modificare, riordinare (frecce su/giù) o eliminare una slide esistente.
+- **Slide del reel**: aggiungere una nuova slide scegliendo tra tre tipi — **immagine** (solo una foto), **immagine con testo sovrapposto** (una foto di sfondo più una citazione/titolo scritti sopra) o **video** (parte in automatico, senza audio, in loop, quando lo studente ci arriva sopra). Per ogni immagine/video puoi **incollare un URL** già pronto (es. un file già presente in `images/` su questo stesso sito, oppure ospitato altrove) **oppure premere "📤 Carica file"** per caricarlo direttamente dal tuo computer o telefono — il campo URL si riempie da solo col link del file appena caricato. Dalla stessa pagina puoi modificare, riordinare (frecce su/giù), vedere un'anteprima o eliminare una slide esistente.
 
-  Non devi preoccuparti della risoluzione dell'immagine che incolli: viene automaticamente ridimensionata e compressa per il telefono (non succede per i video, che vanno quindi scelti già di dimensione ragionevole).
+  Non devi preoccuparti della risoluzione dell'immagine: viene automaticamente ridimensionata e compressa per il telefono (non succede per i video, che vanno quindi scelti già di dimensione ragionevole — limite di caricamento 10MB per le immagini, 150MB per i video).
+
+- **Anteprima mobile**: il pulsante 👁 (sia nella lista delle slide sia dentro il form di modifica) mostra, dentro una cornice a forma di telefono, esattamente come apparirà quella slide sul reel — comodo per controllare leggibilità/colori prima di mostrarla in classe.
+- **Colore del testo**: nelle slide "immagine con testo", il pallino accanto al campo colore apre una tavolozza di colori già pronti; il testo ha sempre un contorno automatico (scuro su sfondo chiaro, chiaro su sfondo scuro) per restare leggibile sopra qualunque foto.
 
 Nota: eliminando una slide, i dati già raccolti su quella slide (tempo di permanenza, cuori) restano nel database e continuano a far parte dei totali in dashboard — semplicemente non comparirà più come card separata.
 

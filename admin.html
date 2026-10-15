@@ -115,6 +115,19 @@
   .msg-error { color:var(--red); }
   .msg-ok { color:var(--green); }
 
+  /* ── Upload file (verso il bucket S3 Cubbit) ─────────────── */
+  .upload-row { display:flex; align-items:center; gap:.6rem; margin-top:.5rem; flex-wrap:wrap; }
+  .upload-btn {
+    display:inline-block; background:transparent; border:1px solid var(--border);
+    color:var(--text); padding:.4rem .8rem; border-radius:6px;
+    font-size:.75rem; cursor:pointer;
+  }
+  .upload-btn:hover { border-color:var(--blue); }
+  .upload-btn input[type="file"] { display:none; }
+  .upload-status { font-size:.75rem; color:var(--muted); }
+  .upload-status.msg-ok { color:var(--green); }
+  .upload-status.msg-error { color:var(--red); }
+
   /* ── Selettore colore (pallino + palette preimpostata) ───── */
   .accent-picker-row { display:flex; align-items:center; gap:.5rem; position:relative; }
   .accent-picker-row input[type="text"] { flex:1; }
@@ -255,11 +268,19 @@
     <div id="fields-image">
       <label>URL immagine</label>
       <input type="url" id="slide-image-url" placeholder="https://.../immagine.jpg">
+      <div class="upload-row">
+        <label class="upload-btn">📤 Carica file<input type="file" accept="image/*" onchange="handleFileUpload(event,'slide-image-url','image')"></label>
+        <span class="upload-status" id="upload-status-slide-image-url"></span>
+      </div>
     </div>
 
     <div id="fields-image-text" style="display:none">
       <label>URL immagine di sfondo</label>
       <input type="url" id="slide-image-url-2" placeholder="https://.../sfondo.jpg">
+      <div class="upload-row">
+        <label class="upload-btn">📤 Carica file<input type="file" accept="image/*" onchange="handleFileUpload(event,'slide-image-url-2','image')"></label>
+        <span class="upload-status" id="upload-status-slide-image-url-2"></span>
+      </div>
       <label>Eyebrow</label>
       <input type="text" id="slide-eyebrow" placeholder="es. EDWARD SNOWDEN">
       <label>Titolo</label>
@@ -279,6 +300,10 @@
     <div id="fields-video" style="display:none">
       <label>URL video (.mp4 pubblico)</label>
       <input type="url" id="slide-video-url" placeholder="https://.../video.mp4">
+      <div class="upload-row">
+        <label class="upload-btn">📤 Carica file<input type="file" accept="video/*" onchange="handleFileUpload(event,'slide-video-url','video')"></label>
+        <span class="upload-status" id="upload-status-slide-video-url"></span>
+      </div>
     </div>
 
     <button class="btn" onclick="saveSlide()">Salva slide</button>
@@ -506,6 +531,55 @@ function editSlide(id) {
 
 function closeSlideForm() {
   document.getElementById('slide-form-modal').classList.remove('visible');
+}
+
+// ── Upload file su Cubbit (bucket S3 proprio) ──────────────────
+// La secret key S3 non tocca mai il browser: una Netlify Function la
+// conosce (variabile d'ambiente lato server) e genera un URL di upload
+// firmato e temporaneo; il browser carica il file DIRETTAMENTE su Cubbit
+// con quell'URL, i byte non passano mai dalla function.
+const UPLOAD_LIMITS = { image: 10 * 1024 * 1024, video: 150 * 1024 * 1024 }; // 10MB / 150MB
+
+async function handleFileUpload(event, targetInputId, kind) {
+  const input = event.target;
+  const file = input.files[0];
+  input.value = ''; // permette di ricaricare lo stesso file in futuro
+  if (!file) return;
+
+  const statusEl = document.getElementById('upload-status-' + targetInputId);
+  const setStatus = (text, cls) => { statusEl.textContent = text; statusEl.className = 'upload-status' + (cls ? ' ' + cls : ''); };
+
+  const limit = UPLOAD_LIMITS[kind];
+  if (file.size > limit) {
+    setStatus(`File troppo grande (max ${Math.round(limit / 1024 / 1024)}MB)`, 'msg-error');
+    return;
+  }
+  if (!file.type.startsWith(kind + '/')) {
+    setStatus(kind === 'image' ? 'Il file scelto non è un\'immagine' : 'Il file scelto non è un video', 'msg-error');
+    return;
+  }
+
+  setStatus('Caricamento in corso…');
+  try {
+    const res = await fetch('/.netlify/functions/get-upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminToken: CFG.adminToken, filename: file.name, contentType: file.type }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `errore ${res.status}`);
+    }
+    const { uploadUrl, publicUrl } = await res.json();
+
+    const putRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+    if (!putRes.ok) throw new Error(`upload fallito (${putRes.status})`);
+
+    document.getElementById(targetInputId).value = publicUrl;
+    setStatus('Caricato ✓', 'msg-ok');
+  } catch (err) {
+    setStatus('Errore: ' + err.message, 'msg-error');
+  }
 }
 
 // Lettura dei campi del form, condivisa tra salvataggio e anteprima — così

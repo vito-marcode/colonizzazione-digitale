@@ -32,5 +32,12 @@ window.APP_CONFIG = {
   // Cambiala prima di usare il progetto: chiunque la legga da qui può
   // modificare le slide mostrate a tutti (stessa protezione "offuscamento
   // lato client" di analyticsToken, nessuna autenticazione reale).
+  //
+  // Se cambi questo valore, aggiorna anche la variabile d'ambiente
+  // ADMIN_TOKEN su Netlify (Site settings → Environment variables) con lo
+  // STESSO valore: la usa netlify/functions/get-upload-url.js per
+  // autorizzare l'upload di file su Cubbit. Le altre variabili richieste da
+  // quella funzione (credenziali S3 di Cubbit) vanno impostate SOLO su
+  // Netlify, mai in questo file: sono segrete, non vanno nel repo pubblico.
   adminToken: 'cesolouncapoclan',
 };

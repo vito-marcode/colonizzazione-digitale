@@ -21,9 +21,27 @@ adminToken:       'colonizzazione-admin-2026', // cambia a piacere
 ```
 
 ### 3. Configura le slide del reel da `admin.html`
-Le slide non sono più un array in `config.js`: si gestiscono da `admin.html#<adminToken>` (vedi "Le pagine del progetto" in `user-guide.md`). Tre tipi disponibili — immagine, immagine con testo sovrapposto, video — tutti tramite URL esterno (nessun upload: per le immagini puoi comunque linkare i file in `images/` di questo stesso sito, es. `https://tuo-sito.netlify.app/images/slide-01.jpg`).
+Le slide non sono più un array in `config.js`: si gestiscono da `admin.html#<adminToken>` (vedi "Le pagine del progetto" in `user-guide.md`). Tre tipi disponibili — immagine, immagine con testo sovrapposto, video. Per ogni campo media puoi **incollare un URL esterno già pronto** (es. un file in `images/` di questo stesso sito) **oppure caricare un file direttamente** dal pulsante "📤 Carica file", che lo manda al tuo bucket S3 (es. Cubbit) — vedi sotto.
 
-Le immagini (non i video) passano automaticamente da [wsrv.nl](https://wsrv.nl) — un proxy di resize/compressione gratuito, senza API key — per evitare di servire ai telefoni l'immagine incollata alla sua risoluzione originale (l'admin può linkare anche una foto da 4000×3000px: verrà ridimensionata e compressa al volo, senza ingrandire quelle già piccole).
+Le immagini (non i video) passano automaticamente da [wsrv.nl](https://wsrv.nl) — un proxy di resize/compressione gratuito, senza API key — per evitare di servire ai telefoni l'immagine alla sua risoluzione originale (una foto da 4000×3000px verrà ridimensionata e compressa al volo, senza ingrandire quelle già piccole).
+
+### 3bis. Upload file su un bucket S3 (es. Cubbit)
+Il pulsante "Carica file" in `admin.html` richiede una Netlify Function dedicata (`netlify/functions/get-upload-url.js`, già nel repo) che genera un URL di upload temporaneo e firmato — la **secret key S3 non deve mai finire in `config.js`** o in qualunque file servito al browser: va impostata **solo** come variabile d'ambiente su Netlify.
+
+1. Crea (o usa) un bucket S3-compatibile (es. [Cubbit](https://cubbit.io)) con **lettura pubblica** degli oggetti e **CORS configurato** per accettare richieste `PUT` dall'origine del tuo sito (es. `https://presentazio.devmarco.it`).
+2. Su Netlify → **Site settings → Environment variables**, aggiungi:
+   ```
+   CUBBIT_ACCESS_KEY_ID       = <access key del bucket>
+   CUBBIT_SECRET_ACCESS_KEY   = <secret key del bucket>
+   CUBBIT_BUCKET              = <nome del bucket>
+   CUBBIT_ENDPOINT            = https://s3.cubbit.eu
+   CUBBIT_REGION              = eu-west-1
+   CUBBIT_PUBLIC_BASE_URL     = <base URL pubblica del bucket>
+   ADMIN_TOKEN                = <stesso valore di adminToken in config.js>
+   ```
+3. Ri-deploya (o aspetta il prossimo deploy automatico) perché le variabili abbiano effetto.
+
+Senza queste variabili configurate, il pulsante "Carica file" mostra un errore — il resto di `admin.html` (incollare URL a mano) continua a funzionare comunque.
 
 ### 4. Deploy su Netlify
 1. Push su GitHub (già fatto)
@@ -51,9 +69,12 @@ Le immagini (non i video) passano automaticamente da [wsrv.nl](https://wsrv.nl) 
 ├── supabase-schema-updates.sql   # Aggiornamento #1 (policy RLS mancante)
 ├── supabase-schema-updates-2.sql # Aggiornamento #2 (colonne device_model/isp)
 ├── supabase-schema-updates-3.sql # Aggiornamento #3 (tabelle slides/site_config)
-├── netlify.toml                  # Config Netlify
+├── netlify.toml                  # Config Netlify (+ directory delle functions)
+├── netlify/functions/
+│   └── get-upload-url.js         # Genera URL di upload firmati verso il bucket S3 (Cubbit)
 ├── scripts/
-│   └── rls-probe.mjs             # Verifica una tantum dei permessi RLS su Supabase
+│   ├── rls-probe.mjs             # Verifica una tantum dei permessi RLS su Supabase
+│   └── cubbit-upload-probe.mjs   # Verifica una tantum dell'upload su Cubbit dopo il deploy
 └── tests/                        # Suite di test automatici (vedi sotto)
 ```
 
@@ -89,6 +110,13 @@ npm run report        # apre l'ultimo report HTML
 node scripts/rls-probe.mjs
 ```
 Alla fine stampa la query SQL per eliminare la riga di prova appena creata.
+
+### Verificare l'upload su Cubbit
+`scripts/cubbit-upload-probe.mjs` fa la stessa cosa ma per l'upload: dopo il deploy, chiede alla Netlify Function un URL firmato, carica un file di prova minuscolo e rilegge l'URL pubblico per confermare che tutto (function, credenziali, ACL, CORS) funzioni:
+```bash
+node scripts/cubbit-upload-probe.mjs
+```
+Il file di prova resta sul bucket (lo script non ha le credenziali per cancellarlo): l'output include la chiave da eliminare a mano dalla console Cubbit.
 
 ## Dati raccolti (tutti anonimi)
 - Tempo di attenzione per ogni slide
