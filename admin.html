@@ -306,7 +306,7 @@
       </div>
     </div>
 
-    <button class="btn" onclick="saveSlide()">Salva slide</button>
+    <button class="btn" id="save-slide-btn" onclick="saveSlide()">Salva slide</button>
     <button class="btn btn-secondary" onclick="openPreview()">👁 Anteprima mobile</button>
     <button class="btn btn-secondary" onclick="closeSlideForm()">Annulla</button>
     <div id="slide-form-msg" class="msg"></div>
@@ -604,20 +604,31 @@ function readSlideForm() {
 }
 
 async function saveSlide() {
+  // Senza questa guardia, un doppio click sul pulsante (facile se si aspetta
+  // il risultato dell'upload) lancia due insert identici: confermato in
+  // produzione da due slide con lo stesso identico image_url/timestamp.
+  const btn = document.getElementById('save-slide-btn');
+  if (btn.disabled) return;
+  btn.disabled = true;
+
   const msg = document.getElementById('slide-form-msg');
   msg.textContent = '';
   const payload = readSlideForm();
 
-  if (editingSlideId) {
-    const { error } = await sb.from('slides').update(payload).eq('id', editingSlideId);
-    if (error) { msg.textContent = 'Errore: ' + error.message; msg.className = 'msg msg-error'; return; }
-  } else {
-    payload.position = slidesCache.length; // append in coda
-    const { error } = await sb.from('slides').insert(payload);
-    if (error) { msg.textContent = 'Errore: ' + error.message; msg.className = 'msg msg-error'; return; }
+  try {
+    if (editingSlideId) {
+      const { error } = await sb.from('slides').update(payload).eq('id', editingSlideId);
+      if (error) { msg.textContent = 'Errore: ' + error.message; msg.className = 'msg msg-error'; return; }
+    } else {
+      payload.position = slidesCache.length; // append in coda
+      const { error } = await sb.from('slides').insert(payload);
+      if (error) { msg.textContent = 'Errore: ' + error.message; msg.className = 'msg msg-error'; return; }
+    }
+    closeSlideForm();
+    await loadSlides();
+  } finally {
+    btn.disabled = false;
   }
-  closeSlideForm();
-  await loadSlides();
 }
 
 async function deleteSlide(id) {
