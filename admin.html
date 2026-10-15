@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Colonizzazione Digitale</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;600;700;900&display=swap');
+
+  :root {
+    --bg:#05070a; --surface:#0d1117; --card:#111827;
+    --blue:#38bdf8; --red:#ef4444; --green:#22c55e;
+    --yellow:#fbbf24; --purple:#a78bfa;
+    --text:#f3f4f6; --muted:#6b7280; --border:#1f2937;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+  /* ── Auth wall ────────────────────────────────────────── */
+  #auth-wall {
+    min-height:100vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:1rem;
+  }
+  .auth-title { font-size:3rem; font-weight:900; color:var(--purple); }
+  .auth-sub   { color:var(--muted); font-size:1rem; }
+
+  /* ── Layout ───────────────────────────────────────────── */
+  #admin-panel { display:none; padding:2rem; max-width:900px; margin:0 auto; }
+  #admin-panel.visible { display:block; }
+
+  header {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:2rem; padding-bottom:1.5rem;
+    border-bottom:1px solid var(--border);
+  }
+  .header-title { font-size:1.8rem; font-weight:900; }
+  .header-title span { color:var(--purple); }
+
+  .section {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:1.5rem; margin-bottom:2rem;
+  }
+  .section-title {
+    font-size:.7rem; letter-spacing:.15em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:1.2rem;
+  }
+
+  label { display:block; font-size:.8rem; color:var(--muted); margin-bottom:.3rem; margin-top:.9rem; }
+  label:first-child { margin-top:0; }
+  input[type="text"], input[type="url"], textarea, select {
+    width:100%; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); padding:.6rem .8rem; border-radius:8px;
+    font-size:.9rem; font-family:inherit;
+  }
+  textarea { resize:vertical; min-height:70px; }
+
+  .btn {
+    background:var(--blue); color:#000; border:none;
+    padding:.6rem 1.4rem; border-radius:8px; font-weight:700;
+    cursor:pointer; font-size:.85rem; margin-top:1.2rem; margin-right:.5rem;
+  }
+  .btn-secondary { background:transparent; color:var(--text); border:1px solid var(--border); }
+  .btn-danger { background:var(--red); color:#fff; }
+  .btn-sm { padding:.3rem .6rem; font-size:.7rem; margin-top:0; }
+
+  /* ── Slides list ──────────────────────────────────────── */
+  .slide-row {
+    display:flex; align-items:center; gap:.8rem;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:.7rem 1rem; margin-bottom:.6rem;
+  }
+  .slide-thumb {
+    width:40px; height:70px; object-fit:cover; border-radius:4px;
+    background:#000; flex-shrink:0;
+  }
+  .slide-thumb-placeholder {
+    width:40px; height:70px; border-radius:4px; background:#000;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.2rem; flex-shrink:0;
+  }
+  .slide-badge {
+    font-size:.6rem; text-transform:uppercase; letter-spacing:.05em;
+    padding:.15rem .5rem; border-radius:20px; background:rgba(167,139,250,.15);
+    color:var(--purple); flex-shrink:0;
+  }
+  .slide-label { flex:1; font-size:.85rem; }
+  .slide-actions { display:flex; gap:.3rem; flex-shrink:0; }
+  .slide-actions button {
+    background:var(--card); border:1px solid var(--border); color:var(--text);
+    padding:.3rem .6rem; border-radius:6px; cursor:pointer; font-size:.75rem;
+  }
+  .slide-actions button:hover { border-color:var(--blue); }
+
+  .empty { color:var(--muted); font-size:.85rem; text-align:center; padding:1.5rem; }
+
+  /* ── Modal form ───────────────────────────────────────── */
+  #slide-form-modal {
+    display:none; position:fixed; inset:0; z-index:1000;
+    background:rgba(0,0,0,.7);
+    align-items:center; justify-content:center;
+  }
+  #slide-form-modal.visible { display:flex; }
+  .modal-box {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; padding:1.5rem; width:90%; max-width:480px;
+    max-height:85vh; overflow-y:auto;
+  }
+
+  .msg { font-size:.8rem; margin-top:.8rem; }
+  .msg-error { color:var(--red); }
+  .msg-ok { color:var(--green); }
+</style>
+</head>
+<body>
+
+<!-- Auth wall -->
+<div id="auth-wall">
+  <div class="auth-title">🛠️</div>
+  <div style="font-size:1.5rem;font-weight:900">Accesso Admin</div>
+  <div class="auth-sub">Inserisci il codice amministratore</div>
+  <input type="password" id="auth-input" placeholder="codice..." autocomplete="off"
+    style="background:#111827;border:1px solid #374151;color:white;padding:.6rem 1rem;border-radius:8px;font-size:1rem;text-align:center;width:220px;"
+    onkeydown="if(event.key==='Enter')checkAuth()">
+  <button onclick="checkAuth()"
+    style="background:#a78bfa;color:#000;border:none;padding:.6rem 2rem;border-radius:8px;font-weight:700;cursor:pointer;font-size:.9rem;">
+    Accedi
+  </button>
+  <div id="auth-err" style="color:#ef4444;font-size:.8rem;display:none;">Codice errato</div>
+</div>
+
+<!-- Admin panel -->
+<div id="admin-panel">
+
+  <header>
+    <div class="header-title">Admin — <span>Colonizzazione Digitale</span></div>
+  </header>
+
+  <!-- Testi schermo QR -->
+  <section class="section">
+    <div class="section-title">Testi schermo QR (index.html)</div>
+    <label>Eyebrow (sopra il QR)</label>
+    <input type="text" id="cfg-eyebrow" placeholder="Scansiona con il telefono per partecipare">
+    <label>Sottotitolo (sotto il QR)</label>
+    <input type="text" id="cfg-subtitle" placeholder="Il tuo telefono diventerà parte dell'esperimento.">
+    <label>Titolo pagina (tab del browser)</label>
+    <input type="text" id="cfg-title" placeholder="Colonizzazione Digitale — Schermo Principale">
+    <button class="btn" onclick="saveSiteConfig()">Salva testi</button>
+    <span id="site-config-msg" class="msg"></span>
+  </section>
+
+  <!-- Slide del reel -->
+  <section class="section">
+    <div class="section-title">Slide del reel (reel.html)</div>
+    <div id="slides-list"></div>
+    <button class="btn" onclick="openSlideForm()">+ Nuova slide</button>
+  </section>
+
+</div>
+
+<!-- Form slide (modale) -->
+<div id="slide-form-modal">
+  <div class="modal-box">
+    <div class="section-title" id="slide-form-title">Nuova slide</div>
+
+    <label>Tipo</label>
+    <select id="slide-type" onchange="onTypeChange()">
+      <option value="image">Immagine</option>
+      <option value="image_text">Immagine con testo sovrapposto</option>
+      <option value="video">Video</option>
+    </select>
+
+    <label>Etichetta (per la dashboard)</label>
+    <input type="text" id="slide-label" placeholder="es. Snowden">
+
+    <div id="fields-image">
+      <label>URL immagine</label>
+      <input type="url" id="slide-image-url" placeholder="https://.../immagine.jpg">
+    </div>
+
+    <div id="fields-image-text" style="display:none">
+      <label>URL immagine di sfondo</label>
+      <input type="url" id="slide-image-url-2" placeholder="https://.../sfondo.jpg">
+      <label>Eyebrow</label>
+      <input type="text" id="slide-eyebrow" placeholder="es. EDWARD SNOWDEN">
+      <label>Titolo</label>
+      <input type="text" id="slide-title" placeholder="Titolo della slide">
+      <label>Corpo</label>
+      <textarea id="slide-body" placeholder="Testo della citazione..."></textarea>
+      <label>Footer</label>
+      <input type="text" id="slide-footer" placeholder="es. fonte, nota">
+      <label>Colore testo</label>
+      <input type="text" id="slide-accent" placeholder="#ffffff">
+    </div>
+
+    <div id="fields-video" style="display:none">
+      <label>URL video (.mp4 pubblico)</label>
+      <input type="url" id="slide-video-url" placeholder="https://.../video.mp4">
+    </div>
+
+    <button class="btn" onclick="saveSlide()">Salva slide</button>
+    <button class="btn btn-secondary" onclick="closeSlideForm()">Annulla</button>
+    <div id="slide-form-msg" class="msg"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+'use strict';
+
+const CFG = window.APP_CONFIG;
+const sb  = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
+
+// ── Auth ──────────────────────────────────────────────────────
+function unlockAdmin() {
+  document.getElementById('auth-wall').style.display = 'none';
+  document.getElementById('admin-panel').classList.add('visible');
+  loadSiteConfig();
+  loadSlides();
+}
+
+function checkAuth() {
+  const input = document.getElementById('auth-input').value.trim();
+  if (input === CFG.adminToken || window.location.hash.slice(1) === CFG.adminToken) {
+    unlockAdmin();
+  } else {
+    document.getElementById('auth-err').style.display = 'block';
+  }
+}
+
+// Nessun link pubblico porta qui: raggiungibile solo conoscendo l'URL diretto
+// con #<adminToken>, come analytics.html ma senza un simbolo cliccabile.
+if (window.location.hash.slice(1) === CFG.adminToken) {
+  unlockAdmin();
+}
+
+// ── Testi schermo QR (site_config, riga singola id=1) ──────────
+async function loadSiteConfig() {
+  const { data, error } = await sb.from('site_config').select('*').eq('id', 1).maybeSingle();
+  if (error || !data) return;
+  document.getElementById('cfg-eyebrow').value  = data.qr_eyebrow  || '';
+  document.getElementById('cfg-subtitle').value = data.qr_subtitle || '';
+  document.getElementById('cfg-title').value    = data.page_title || '';
+}
+
+async function saveSiteConfig() {
+  const msg = document.getElementById('site-config-msg');
+  msg.textContent = '';
+  const payload = {
+    id: 1,
+    qr_eyebrow:  document.getElementById('cfg-eyebrow').value.trim() || null,
+    qr_subtitle: document.getElementById('cfg-subtitle').value.trim() || null,
+    page_title:  document.getElementById('cfg-title').value.trim() || null,
+  };
+  const { error } = await sb.from('site_config').upsert(payload, { onConflict: 'id' });
+  if (error) {
+    msg.textContent = 'Errore: ' + error.message;
+    msg.className = 'msg msg-error';
+    return;
+  }
+  msg.textContent = 'Salvato ✓';
+  msg.className = 'msg msg-ok';
+}
+
+// ── Slide del reel (tabella slides) ────────────────────────────
+let slidesCache = [];
+let editingSlideId = null;
+
+const TYPE_LABELS = { image: 'Immagine', image_text: 'Immagine+testo', video: 'Video' };
+
+async function loadSlides() {
+  const { data, error } = await sb.from('slides').select('*').order('position', { ascending: true });
+  if (error) { console.error('[Admin] fetch slides fallito:', error.message); return; }
+  slidesCache = data || [];
+  renderSlidesList();
+}
+
+function renderSlidesList() {
+  const el = document.getElementById('slides-list');
+  if (slidesCache.length === 0) {
+    el.innerHTML = '<div class="empty">Nessuna slide configurata. Il reel non mostrerà nulla finché non ne aggiungi una.</div>';
+    return;
+  }
+  el.innerHTML = slidesCache.map((s, i) => {
+    let thumb;
+    if (s.type === 'video') {
+      thumb = '<div class="slide-thumb-placeholder">🎬</div>';
+    } else if (s.image_url) {
+      thumb = `<img class="slide-thumb" src="${esc(s.image_url)}" alt="">`;
+    } else {
+      thumb = '<div class="slide-thumb-placeholder">🖼️</div>';
+    }
+    return `
+      <div class="slide-row">
+        ${thumb}
+        <span class="slide-badge">${TYPE_LABELS[s.type] || s.type}</span>
+        <span class="slide-label">${esc(s.label || '(senza etichetta)')}</span>
+        <div class="slide-actions">
+          <button onclick="moveSlide(${s.id},'up')" ${i === 0 ? 'disabled' : ''} title="Sposta su">▲</button>
+          <button onclick="moveSlide(${s.id},'down')" ${i === slidesCache.length - 1 ? 'disabled' : ''} title="Sposta giù">▼</button>
+          <button onclick="editSlide(${s.id})" title="Modifica">✎</button>
+          <button onclick="deleteSlide(${s.id})" title="Elimina">🗑</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function onTypeChange() {
+  const type = document.getElementById('slide-type').value;
+  document.getElementById('fields-image').style.display      = type === 'image' ? 'block' : 'none';
+  document.getElementById('fields-image-text').style.display = type === 'image_text' ? 'block' : 'none';
+  document.getElementById('fields-video').style.display      = type === 'video' ? 'block' : 'none';
+}
+
+function openSlideForm() {
+  editingSlideId = null;
+  document.getElementById('slide-form-title').textContent = 'Nuova slide';
+  document.getElementById('slide-type').value = 'image';
+  ['slide-label','slide-image-url','slide-image-url-2','slide-eyebrow','slide-title','slide-body','slide-footer','slide-accent','slide-video-url']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('slide-form-msg').textContent = '';
+  onTypeChange();
+  document.getElementById('slide-form-modal').classList.add('visible');
+}
+
+function editSlide(id) {
+  const s = slidesCache.find(x => x.id === id);
+  if (!s) return;
+  editingSlideId = id;
+  document.getElementById('slide-form-title').textContent = 'Modifica slide';
+  document.getElementById('slide-type').value = s.type;
+  document.getElementById('slide-label').value = s.label || '';
+  document.getElementById('slide-image-url').value = s.type === 'image' ? (s.image_url || '') : '';
+  document.getElementById('slide-image-url-2').value = s.type === 'image_text' ? (s.image_url || '') : '';
+  document.getElementById('slide-eyebrow').value = s.eyebrow || '';
+  document.getElementById('slide-title').value = s.title || '';
+  document.getElementById('slide-body').value = s.body || '';
+  document.getElementById('slide-footer').value = s.footer || '';
+  document.getElementById('slide-accent').value = s.accent || '';
+  document.getElementById('slide-video-url').value = s.video_url || '';
+  document.getElementById('slide-form-msg').textContent = '';
+  onTypeChange();
+  document.getElementById('slide-form-modal').classList.add('visible');
+}
+
+function closeSlideForm() {
+  document.getElementById('slide-form-modal').classList.remove('visible');
+}
+
+async function saveSlide() {
+  const msg = document.getElementById('slide-form-msg');
+  msg.textContent = '';
+  const type = document.getElementById('slide-type').value;
+  const payload = { type, label: document.getElementById('slide-label').value.trim() || null };
+
+  if (type === 'image') {
+    payload.image_url = document.getElementById('slide-image-url').value.trim() || null;
+  } else if (type === 'image_text') {
+    payload.image_url = document.getElementById('slide-image-url-2').value.trim() || null;
+    payload.eyebrow = document.getElementById('slide-eyebrow').value.trim() || null;
+    payload.title   = document.getElementById('slide-title').value.trim() || null;
+    payload.body    = document.getElementById('slide-body').value.trim() || null;
+    payload.footer  = document.getElementById('slide-footer').value.trim() || null;
+    payload.accent  = document.getElementById('slide-accent').value.trim() || null;
+  } else if (type === 'video') {
+    payload.video_url = document.getElementById('slide-video-url').value.trim() || null;
+  }
+
+  if (editingSlideId) {
+    const { error } = await sb.from('slides').update(payload).eq('id', editingSlideId);
+    if (error) { msg.textContent = 'Errore: ' + error.message; msg.className = 'msg msg-error'; return; }
+  } else {
+    payload.position = slidesCache.length; // append in coda
+    const { error } = await sb.from('slides').insert(payload);
+    if (error) { msg.textContent = 'Errore: ' + error.message; msg.className = 'msg msg-error'; return; }
+  }
+  closeSlideForm();
+  await loadSlides();
+}
+
+async function deleteSlide(id) {
+  if (!confirm('Eliminare questa slide? Le visualizzazioni/i cuori storici restano nel database, solo senza più il collegamento diretto a questa slide.')) return;
+  const { error } = await sb.from('slides').delete().eq('id', id);
+  if (error) { alert('Errore eliminazione: ' + error.message); return; }
+  await repackPositions();
+  await loadSlides();
+}
+
+// Ripacchetta le posizioni a 0..N-1 contigue dopo una delete: analytics.html
+// fa fallback su image_index===slide.position per i dati storici, quindi un
+// "buco" nelle posizioni spezzerebbe quell'attribuzione.
+async function repackPositions() {
+  const { data, error } = await sb.from('slides').select('id').order('position', { ascending: true });
+  if (error || !data) return;
+  await Promise.all(data.map((row, i) => sb.from('slides').update({ position: i }).eq('id', row.id)));
+}
+
+// Riordino: scambia "position" con la riga adiacente (niente drag&drop).
+async function moveSlide(id, dir) {
+  const idx = slidesCache.findIndex(s => s.id === id);
+  const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= slidesCache.length) return;
+  const a = slidesCache[idx], b = slidesCache[swapIdx];
+  const [{ error: e1 }, { error: e2 }] = await Promise.all([
+    sb.from('slides').update({ position: b.position }).eq('id', a.id),
+    sb.from('slides').update({ position: a.position }).eq('id', b.id),
+  ]);
+  if (e1 || e2) { alert('Errore riordino: ' + (e1 || e2).message); return; }
+  await loadSlides();
+}
+</script>
+</body>
+</html>

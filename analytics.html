@@ -350,11 +350,12 @@ async function loadAll() {
   document.getElementById('last-updated').textContent =
     'Aggiornato: ' + new Date().toLocaleTimeString('it-IT');
 
-  const [sessions, views, hearts, scrolls] = await Promise.all([
+  const [sessions, views, hearts, scrolls, slidesRes] = await Promise.all([
     sb.from('sessions').select('*').order('created_at', { ascending: false }),
     sb.from('image_views').select('*'),
     sb.from('hearts').select('*'),
     sb.from('scroll_events').select('*'),
+    sb.from('slides').select('*').order('position', { ascending: true }),
   ]);
 
   const filterStart = getFilterStart();
@@ -364,13 +365,17 @@ async function loadAll() {
   const V = (views.data    || []).filter(afterFilter);
   const H = (hearts.data   || []).filter(afterFilter);
   const SC= (scrolls.data  || []).filter(afterFilter);
+  SLIDES  = slidesRes.data || [];
 
   renderDashboard(S, V, H, SC);
 }
 
 // ── Render ────────────────────────────────────────────────────
 const COLORS = ['#38bdf8','#ef4444','#fbbf24','#a78bfa','#22c55e','#f97316','#ec4899'];
-const SLIDES  = CFG.slides;
+// Le slide vivono nel DB (tabella `slides`, gestita da admin.html), non più
+// in config.js: ogni auto-refresh (ogni 30s) le rilegge, così riflette anche
+// modifiche fatte dall'admin durante la lezione.
+let SLIDES = [];
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function fmtMs(ms) {
@@ -393,16 +398,22 @@ function renderDashboard(S, V, H, SC) {
     : 0;
 
   // ── Dwell per slide ────────────────────────────────────────
-  const dwellBySlide = {}; // { idx: { total, count, hearts } }
-  SLIDES.forEach((_,i) => { dwellBySlide[i] = { total:0, count:0, hearts:0 }; });
-  V.forEach(v => {
-    if (!dwellBySlide[v.image_index]) dwellBySlide[v.image_index] = { total:0, count:0, hearts:0 };
-    dwellBySlide[v.image_index].total += (v.dwell_ms||0);
-    dwellBySlide[v.image_index].count++;
-  });
-  H.forEach(h => {
-    if (!dwellBySlide[h.image_index]) dwellBySlide[h.image_index] = { total:0, count:0, hearts:0 };
-    dwellBySlide[h.image_index].hearts++;
+  // Le slide possono essere riordinate/cancellate da admin.html: usiamo
+  // slide_id (riferimento stabile) quando presente, e solo per le righe
+  // storiche pre-migrazione ricadiamo sul confronto per posizione.
+  function matchesSlide(row, slide) {
+    if (row.slide_id != null) return row.slide_id === slide.id;
+    return row.image_index === slide.position;
+  }
+  const dwellBySlide = SLIDES.map(slide => {
+    const vRows = V.filter(v => matchesSlide(v, slide));
+    const hRows = H.filter(h => matchesSlide(h, slide));
+    return {
+      slide,
+      total: vRows.reduce((s, v) => s + (v.dwell_ms || 0), 0),
+      count: vRows.length,
+      hearts: hRows.length,
+    };
   });
 
   // ── Hand detection ─────────────────────────────────────────

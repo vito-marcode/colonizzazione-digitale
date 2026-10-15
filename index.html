@@ -148,54 +148,7 @@
     margin-bottom:2rem;
   }
 
-  #start-btn {
-    background:var(--blue); color:#000;
-    border:none; padding:1rem 2.5rem;
-    border-radius:100px; font-weight:700; font-size:1rem;
-    cursor:pointer; transition:all .2s;
-    letter-spacing:.02em;
-  }
-  #start-btn:hover { background:#7dd3fc; transform:scale(1.03); }
 
-  /* ── Presentation wrapper ────────────────────────────── */
-  #presentation-wrapper {
-    display:none;
-    height:100vh;
-    overflow-y:auto;
-    scroll-behavior:smooth;
-    scrollbar-width:none;
-  }
-  #presentation-wrapper::-webkit-scrollbar { display:none; }
-  #presentation-wrapper.active { display:block; }
-
-  /* ── Presentation styles (inherited from presentazione.html) ── */
-  #presentation-wrapper section {
-    min-height:100vh; display:flex; flex-direction:column;
-    justify-content:center; align-items:center;
-    padding:60px 20px; border-bottom:1px solid #1f2937; text-align:center;
-  }
-  #presentation-wrapper .container { max-width:900px; width:100%; }
-  #presentation-wrapper h1 {
-    font-size:4rem;
-    background:linear-gradient(135deg,#38bdf8 0%,#818cf8 100%);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-    font-weight:900;
-  }
-  #presentation-wrapper h2 { font-size:2.5rem; color:var(--blue); margin-bottom:20px; }
-  #presentation-wrapper .box {
-    background:var(--card); padding:30px; border-radius:20px;
-    border:1px solid #374151; margin:25px 0; text-align:left;
-  }
-  #presentation-wrapper .box-red { border-left:6px solid var(--red); }
-  #presentation-wrapper .timestamp {
-    display:inline-block; background:#ff0000; color:white;
-    padding:5px 12px; border-radius:5px; text-decoration:none;
-    font-weight:bold; margin-bottom:10px; font-size:.9rem;
-  }
-  #presentation-wrapper ul { list-style:none; padding:0; font-size:1.2rem; }
-  #presentation-wrapper li { margin-bottom:10px; }
-  #presentation-wrapper li::before { content:"⚡"; margin-right:10px; }
-  #presentation-wrapper .highlight-red { color:var(--red); font-weight:bold; }
 </style>
 </head>
 <body>
@@ -249,87 +202,10 @@
 
 <!-- QR Section -->
 <div id="qr-section">
-  <div class="qr-eyebrow">Scansiona con il telefono per partecipare</div>
+  <div class="qr-eyebrow" id="qr-eyebrow">Scansiona con il telefono per partecipare</div>
   <div id="qr-container"></div>
   <div class="qr-url" id="reel-url">Caricamento…</div>
-  <div class="qr-sub">Il tuo telefono diventerà parte dell'esperimento.</div>
-  <button id="start-btn" onclick="startPresentation()">▶ Inizia la presentazione</button>
-</div>
-
-<!-- Presentation -->
-<div id="presentation-wrapper">
-
-  <section>
-    <h1>CHI POSSIEDE LA TUA FACCIA?</h1>
-    <p>La colonizzazione dell'identità digitale</p>
-  </section>
-
-  <section>
-    <h2>1. L'illusione del Gratis</h2>
-    <div class="box">
-      <p>Se non paghi per il prodotto, <b>il prodotto sei tu.</b></p>
-      <ul>
-        <li>Il "Mismatch Evolutivo": Cervelli antichi vs Algoritmi moderni.</li>
-        <li>La Dopamina a basso costo: Perché non riesci a staccarti?</li>
-      </ul>
-    </div>
-  </section>
-
-  <section>
-    <h2>2. Cos'è la Colonizzazione?</h2>
-    <div class="box">
-      <p>Occupare il tuo spazio mentale per estrarre dati.</p>
-      <ul>
-        <li><b>Surplus comportamentale:</b> monitorano come ti muovi, non solo cosa scrivi.</li>
-        <li><b>Certezza:</b> L'algoritmo non indovina, lui decide cosa farai dopo.</li>
-      </ul>
-    </div>
-  </section>
-
-  <section>
-    <a href="https://www.youtube.com/watch?v=CGW4kEVMNPU&t=260s" target="_blank" class="timestamp">Video [04:20]</a>
-    <h2>3. La China Scivolosa</h2>
-    <div class="box box-red">
-      <p>Inizia con "Proteggiamo i bambini"... dove finisce?</p>
-      <p>Una volta creata l'infrastruttura di controllo, chi decide cosa è vietato domani?</p>
-    </div>
-  </section>
-
-  <section>
-    <a href="https://www.youtube.com/watch?v=CGW4kEVMNPU&t=1230s" target="_blank" class="timestamp">Video [20:30]</a>
-    <h2>4. Il Dato è Eterno</h2>
-    <div class="box">
-      <p><b>Lezione dalla Storia: L'Olanda (1940)</b></p>
-      <p>Dati nati per scopi civili e "buoni" (censimento) sono diventati uno strumento di sterminio in mano ai nazisti.</p>
-      <ul>
-        <li><span class="highlight-red">Efficienza letale:</span> Grazie a quegli archivi, l'Olanda ebbe la più alta percentuale di deportazioni.</li>
-        <li><span class="highlight-red">L'avvertimento:</span> I dati che regali oggi non hanno data di scadenza. Chi li userà tra 20 o 50 anni?</li>
-      </ul>
-    </div>
-  </section>
-
-  <section>
-    <a href="https://www.youtube.com/watch?v=CGW4kEVMNPU&t=2440s" target="_blank" class="timestamp">Video [40:40]</a>
-    <h2>5. Chat Control e Biometria</h2>
-    <div class="box box-red">
-      <p>Analizzare le foto prima dell'invio. La tua faccia è la tua password definitiva.</p>
-      <ul>
-        <li>Se ti rubano la password, la cambi. Se ti rubano la faccia?</li>
-      </ul>
-    </div>
-  </section>
-
-  <section>
-    <h2>6. Manuale di Resistenza</h2>
-    <div class="box">
-      <ul>
-        <li><b>StopNCII.org:</b> Proteggi la tua intimità.</li>
-        <li><b>Igiene Digitale:</b> Spegni le notifiche dei bot.</li>
-        <li><b>Permesso Negato:</b> Non sei mai solo/a.</li>
-      </ul>
-    </div>
-  </section>
-
+  <div class="qr-sub" id="qr-sub">Il tuo telefono diventerà parte dell'esperimento.</div>
 </div>
 
 <!-- QR code library -->
@@ -355,11 +231,17 @@ new QRCode(document.getElementById('qr-container'), {
   correctLevel: QRCode.CorrectLevel.M,
 });
 
-// ── Presentation toggle ───────────────────────────────────────
-function startPresentation() {
-  document.getElementById('qr-section').style.display = 'none';
-  document.getElementById('presentation-wrapper').classList.add('active');
+// ── Testi personalizzabili dello schermo QR ────────────────────
+// Letti da site_config (gestita da admin.html); il testo già nell'HTML
+// resta come fallback se il fetch fallisce o la riga non esiste ancora.
+async function loadSiteConfig() {
+  const { data, error } = await sb.from('site_config').select('*').eq('id', 1).maybeSingle();
+  if (error || !data) return;
+  if (data.qr_eyebrow)  document.getElementById('qr-eyebrow').textContent = data.qr_eyebrow;
+  if (data.qr_subtitle) document.getElementById('qr-sub').textContent = data.qr_subtitle;
+  if (data.page_title)  document.title = data.page_title;
 }
+loadSiteConfig();
 
 // ── Settings ─────────────────────────────────────────────────
 let heartsEnabled = true;

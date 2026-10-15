@@ -6,7 +6,7 @@ Progetto didattico: presentazione sulla sorveglianza digitale con reel interatti
 
 ### 1. Crea il progetto Supabase
 1. Vai su [supabase.com](https://supabase.com) → New project
-2. **SQL Editor** → Incolla e lancia in ordine: `supabase-schema.sql`, poi `supabase-schema-updates.sql` (policy RLS di UPDATE su `sessions` mancante nello schema iniziale, senza la quale la durata delle sessioni non viene mai salvata), poi `supabase-schema-updates-2.sql` (colonne `device_model`/`isp`)
+2. **SQL Editor** → Incolla e lancia in ordine: `supabase-schema.sql`, poi `supabase-schema-updates.sql` (policy RLS di UPDATE su `sessions` mancante nello schema iniziale, senza la quale la durata delle sessioni non viene mai salvata), poi `supabase-schema-updates-2.sql` (colonne `device_model`/`isp`), poi `supabase-schema-updates-3.sql` (tabelle `slides`/`site_config` per gestire slide e testi QR da `admin.html`)
 3. Vai su **Project Settings → API** → copia:
    - `Project URL`
    - `anon` public key
@@ -16,15 +16,12 @@ Progetto didattico: presentazione sulla sorveglianza digitale con reel interatti
 supabaseUrl:      'https://xxxx.supabase.co',
 supabaseKey:      'eyJ...',
 siteUrl:          'https://tuo-sito.netlify.app',
-analyticsToken:   'colonizzazione2026',  // cambia a piacere
+analyticsToken:   'colonizzazione2026',        // cambia a piacere
+adminToken:       'colonizzazione-admin-2026', // cambia a piacere
 ```
 
-### 3. Aggiungi immagini al reel
-- Metti i file in `images/`
-- Aggiungile all'array `slides` in `config.js`:
-```js
-{ type: 'image', src: 'images/mia-foto.jpg', label: 'descrizione' }
-```
+### 3. Configura le slide del reel da `admin.html`
+Le slide non sono più un array in `config.js`: si gestiscono da `admin.html#<adminToken>` (vedi "Le pagine del progetto" in `user-guide.md`). Tre tipi disponibili — immagine, immagine con testo sovrapposto, video — tutti tramite URL esterno (nessun upload: per le immagini puoi comunque linkare i file in `images/` di questo stesso sito, es. `https://tuo-sito.netlify.app/images/slide-01.jpg`).
 
 ### 4. Deploy su Netlify
 1. Push su GitHub (già fatto)
@@ -41,15 +38,17 @@ analyticsToken:   'colonizzazione2026',  // cambia a piacere
 
 ## Struttura
 ```
-├── index.html                    # Schermo principale (QR + presentazione + cuori)
-├── reel.html                     # Pagina mobile (carosello tracciato)
+├── index.html                    # Schermo principale (solo QR + cuori)
+├── reel.html                     # Pagina mobile (carosello tracciato, slide da DB)
 ├── analytics.html                # Dashboard analytics (nascosta)
-├── config.js                     # Configurazione (URL, immagini, token)
-├── images/                       # Immagini del reel
-│   └── slide-01.png
+├── admin.html                    # Gestione slide e testi QR (nascosta)
+├── config.js                     # Configurazione (URL, token)
+├── images/                       # Immagini di esempio per le slide
+│   └── slide-01.jpg
 ├── supabase-schema.sql           # Schema DB iniziale da caricare su Supabase
 ├── supabase-schema-updates.sql   # Aggiornamento #1 (policy RLS mancante)
 ├── supabase-schema-updates-2.sql # Aggiornamento #2 (colonne device_model/isp)
+├── supabase-schema-updates-3.sql # Aggiornamento #3 (tabelle slides/site_config)
 ├── netlify.toml                  # Config Netlify
 ├── scripts/
 │   └── rls-probe.mjs             # Verifica una tantum dei permessi RLS su Supabase
@@ -63,7 +62,7 @@ Nessun build step: basta un server statico qualsiasi puntato alla cartella del p
 ```bash
 python3 -m http.server 8080
 ```
-poi apri `http://localhost:8080/index.html` (schermo principale), `.../reel.html` (versione mobile) o `.../analytics.html#<analyticsToken>` (dashboard). Attenzione: `config.js` punta al progetto Supabase vero, quindi ogni interazione fatta così scrive dati reali (utile per un test manuale rapido, non per provare cose a raffica).
+poi apri `http://localhost:8080/index.html` (schermo principale), `.../reel.html` (versione mobile), `.../analytics.html#<analyticsToken>` (dashboard) o `.../admin.html#<adminToken>` (gestione slide/testi QR). Attenzione: `config.js` punta al progetto Supabase vero, quindi ogni interazione fatta così scrive dati reali (utile per un test manuale rapido, non per provare cose a raffica) — e con `admin.html` modifichi anche le slide che vedono tutti.
 
 ### Suite di test automatici (Playwright)
 Il progetto include una suite di test end-to-end che pilota `reel.html` con un **vero browser mobile emulato** (gesti touch reali, non semplici click) e verifica che ogni dato mostrato in `analytics.html` sia calcolato correttamente. Le richieste verso Supabase vengono intercettate e simulate in locale (`tests/fixtures/mock-supabase.js`): i test non toccano mai il database reale.

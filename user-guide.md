@@ -6,20 +6,28 @@ Guida pratica per chi presenta il lab in classe. Dominio del sito: [presentazio.
 
 | Pagina | URL | Per chi | A cosa serve |
 |---|---|---|---|
-| Schermo principale | [presentazio.devmarco.it](https://presentazio.devmarco.it/) | Il presentatore, sul proiettore | Mostra il QR code, poi la presentazione con le slide sulla sorveglianza digitale; riceve e mostra i cuori inviati dagli studenti |
-| Reel mobile | [presentazio.devmarco.it/reel.html](https://presentazio.devmarco.it/reel.html) | Gli studenti, sul telefono | Il carosello di immagini che scorrono verticalmente (stile Instagram/TikTok); qui avviene tutto il tracciamento |
+| Schermo principale | [presentazio.devmarco.it](https://presentazio.devmarco.it/) | Il presentatore, sul proiettore | Mostra solo il QR code; riceve e mostra i cuori inviati dagli studenti e il contatore di chi è connesso |
+| Reel mobile | [presentazio.devmarco.it/reel.html](https://presentazio.devmarco.it/reel.html) | Gli studenti, sul telefono | Il carosello (immagini, immagini con citazioni, video) che scorre verticalmente (stile Instagram/TikTok); qui avviene tutto il tracciamento |
 | Dashboard analytics | [presentazio.devmarco.it/analytics.html#colonizzazione2026](https://presentazio.devmarco.it/analytics.html#colonizzazione2026) | Solo il presentatore | Il "reveal" finale: mostra ai ragazzi cosa è stato tracciato di loro mentre guardavano il telefono |
+| Admin | `presentazio.devmarco.it/admin.html#<adminToken>` | Solo il presentatore | Gestisce le slide del reel (crea/modifica/riordina/elimina) e i testi dello schermo QR — da usare prima della lezione |
 
-Il link della dashboard qui sopra include già la password (`colonizzazione2026`) — basta cliccarlo, non serve digitare nulla. Se invece apri `analytics.html` senza il codice dopo il cancelletto, ti chiede una password: inserisci lo stesso valore.
+Il link della dashboard qui sopra include già la password (`colonizzazione2026`) — basta cliccarlo, non serve digitare nulla. Se invece apri `analytics.html` senza il codice dopo il cancelletto, ti chiede una password: inserisci lo stesso valore. Lo stesso vale per `admin.html`, con il suo codice separato (`adminToken` in `config.js`) — a differenza della dashboard, non c'è alcun link/simbolo nascosto che ci porta: va aperto digitando l'URL per intero, proprio perché permette di modificare contenuti e non solo di leggerli.
 
 ## Come si svolge una sessione in classe
 
-1. **Apri lo schermo principale** ([presentazio.devmarco.it](https://presentazio.devmarco.it/)) sul proiettore, meglio a tutto schermo.
-2. Compare un **QR code**: gli studenti lo inquadrano col telefono e si apre automaticamente il reel. Da quel momento ogni telefono crea una sessione anonima e inizia a essere tracciato.
-3. Quando sono pronti, clicca **"▶ Inizia la presentazione"**: lo schermo principale passa dal QR alle slide vere e proprie (il contenuto sulla colonizzazione digitale, i video, ecc.).
-4. Mentre gli studenti scorrono il reel sul telefono, possono premere il **cuore** in basso a destra per mettere "like" a una slide. Ogni cuore appare come animazione (cuoricini che salgono) e un suono sullo schermo principale del presentatore — è pensato per dare un feedback immediato e "gamificato" in aula.
-5. In alto a destra sullo schermo principale c'è un **contatore di connessi in tempo reale** (pallino verde = tutto ok): mostra esattamente quanti telefoni hanno il reel aperto in questo momento, e scende da solo appena qualcuno chiude la pagina.
-6. **Il momento del reveal**: quando vuoi rivelare agli studenti cosa è stato tracciato di loro, apri la dashboard analytics (vedi sotto) — è il cuore pedagogico dell'esperimento ("quello che l'algoritmo ha visto di voi").
+0. **Prima della lezione**, apri `admin.html` (vedi sotto) e controlla che le slide del reel siano quelle che vuoi mostrare.
+1. **Apri lo schermo principale** ([presentazio.devmarco.it](https://presentazio.devmarco.it/)) sul proiettore, meglio a tutto schermo. Mostra solo il QR code: non c'è più nessuna presentazione da avviare.
+2. Gli studenti inquadrano il **QR code** col telefono e si apre automaticamente il reel. Da quel momento ogni telefono crea una sessione anonima e inizia a essere tracciato.
+3. Mentre gli studenti scorrono il reel sul telefono, possono premere il **cuore** in basso a destra per mettere "like" a una slide. Ogni cuore appare come animazione (cuoricini che salgono) e un suono sullo schermo principale del presentatore — è pensato per dare un feedback immediato e "gamificato" in aula.
+4. In alto a destra sullo schermo principale c'è un **contatore di connessi in tempo reale** (pallino verde = tutto ok): mostra esattamente quanti telefoni hanno il reel aperto in questo momento, e scende da solo appena qualcuno chiude la pagina.
+5. **Il momento del reveal**: quando vuoi rivelare agli studenti cosa è stato tracciato di loro, apri la dashboard analytics (vedi sotto) — è il cuore pedagogico dell'esperimento ("quello che l'algoritmo ha visto di voi").
+
+### Gestire le slide del reel (admin.html)
+Apri `admin.html#<adminToken>` per:
+- **Testi schermo QR**: cambiare l'eyebrow, il sottotitolo e il titolo della pagina che compaiono sopra/sotto il QR code sul proiettore.
+- **Slide del reel**: aggiungere una nuova slide scegliendo tra tre tipi — **immagine** (solo una foto), **immagine con testo sovrapposto** (una foto di sfondo più una citazione/titolo scritti sopra) o **video** (parte in automatico, senza audio, in loop, quando lo studente ci arriva sopra). In tutti e tre i casi va incollato un URL — niente caricamento di file: per un'immagine puoi linkare direttamente un file già presente in `images/` su questo stesso sito (es. `https://presentazio.devmarco.it/images/slide-01.jpg`), oppure un'immagine/video ospitati altrove. Dalla stessa pagina puoi modificare, riordinare (frecce su/giù) o eliminare una slide esistente.
+
+Nota: eliminando una slide, i dati già raccolti su quella slide (tempo di permanenza, cuori) restano nel database e continuano a far parte dei totali in dashboard — semplicemente non comparirà più come card separata.
 
 ### Impostazioni dei cuori (schermo principale)
 In basso a destra sullo schermo principale c'è un'icona a ingranaggio (⚙️) che apre un pannello con:
@@ -51,7 +59,7 @@ Aprendo [analytics.html](https://presentazio.devmarco.it/analytics.html#colonizz
 
 - **Barra "Mostra dati da"**: vedi la sezione sotto, serve a far ripartire la dashboard pulita tra una classe e l'altra.
 - **5 numeri in alto**: spettatori unici, cuori totali, slide viste, gesti di scroll, durata media di una sessione.
-- **Attenzione per slide**: una card per ognuna delle 8 slide con tempo medio di permanenza e numero di cuori ricevuti.
+- **Attenzione per slide**: una card per ciascuna slide attualmente configurata (vedi `admin.html`) con tempo medio di permanenza e numero di cuori ricevuti.
 - **🤚 Rilevamento mano**: percentuale di utilizzo mano sinistra / centro / destra, stimata dalla posizione dei tocchi durante lo scroll (i cuori sono esclusi da questo calcolo perché il bottone è fisso in basso a destra e falserebbe il risultato).
 - **Attività per ora del giorno**: istogramma di quando è avvenuta l'interazione.
 - **Comportamento di scroll**: quanti scroll in avanti/indietro, quanti "veloci", velocità media, quante volte si è tornati su una slide già vista.

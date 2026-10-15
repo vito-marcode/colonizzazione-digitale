@@ -27,8 +27,34 @@ function parseEqFilter(url, column) {
   return raw.slice(3);
 }
 
-function installSupabaseMock(context, { rlsMode = 'broken' } = {}) {
-  const store = { sessions: [], image_views: [], hearts: [], scroll_events: [] };
+// Stesse 8 slide di oggi (stessi label/ordine di quelle che erano in
+// config.js), seedate di default nel mock: così tutti gli spec esistenti
+// (scritti prima che le slide diventassero dinamiche) continuano a passare
+// senza modifiche — reel.html trova lo stesso reel di 8 slide di sempre.
+const DEFAULT_SLIDES = [
+  { id: 1, position: 0, type: 'image', label: 'Snowden',        image_url: 'images/slide-01.jpg' },
+  { id: 2, position: 1, type: 'image', label: 'prodotto',       image_url: 'images/slide-02.jpg' },
+  { id: 3, position: 2, type: 'image', label: 'petrolio',       image_url: 'images/slide-03.jpg' },
+  { id: 4, position: 3, type: 'image', label: 'zuboff',         image_url: 'images/slide-04.jpg' },
+  { id: 5, position: 4, type: 'image', label: 'internet',       image_url: 'images/slide-05.jpg' },
+  { id: 6, position: 5, type: 'image', label: 'tecnologia',     image_url: 'images/slide-06.jpg' },
+  { id: 7, position: 6, type: 'image', label: 'papa-francesco', image_url: 'images/slide-07.jpg' },
+  { id: 8, position: 7, type: 'image', label: 'privacy',        image_url: 'images/slide-08.jpg' },
+];
+
+const DEFAULT_SITE_CONFIG = {
+  id: 1,
+  qr_eyebrow: 'Scansiona con il telefono per partecipare',
+  qr_subtitle: "Il tuo telefono diventerà parte dell'esperimento.",
+  page_title: 'Colonizzazione Digitale',
+};
+
+function installSupabaseMock(context, { rlsMode = 'broken', seedSlides = true } = {}) {
+  const store = {
+    sessions: [], image_views: [], hearts: [], scroll_events: [],
+    slides: seedSlides ? DEFAULT_SLIDES.map(s => ({ ...s })) : [],
+    site_config: [{ ...DEFAULT_SITE_CONFIG }],
+  };
 
   // reel.html chiama anche ipapi.co (terze parti, non Supabase) per dedurre
   // l'operatore/rete dall'IP pubblico: mockato qui perché i test devono
@@ -55,20 +81,40 @@ function installSupabaseMock(context, { rlsMode = 'broken' } = {}) {
 
     if (method === 'POST') {
       const payload = req.postDataJSON();
-      const rows = [].concat(payload).map((r) => ({
-        id: r.id ?? nextId++,
-        created_at: r.created_at ?? new Date().toISOString(),
-        // sessions.total_ms ha DEFAULT 0 nello schema reale (supabase-schema.sql);
-        // il client non lo invia mai nell'insert iniziale.
-        ...(table === 'sessions' ? { total_ms: 0 } : {}),
-        ...r,
-      }));
-      store[table].push(...rows);
+      const headers = req.headers();
+      // .upsert(payload, {onConflict:'col'}) di supabase-js diventa un POST
+      // con header Prefer: resolution=merge-duplicates + query on_conflict.
+      const isUpsert = (headers['prefer'] || '').includes('resolution=merge-duplicates');
+      const onConflictCol = url.searchParams.get('on_conflict');
+      const rows = [].concat(payload).map((r) => {
+        if (isUpsert && onConflictCol) {
+          const existing = store[table].find((row) => row[onConflictCol] === r[onConflictCol]);
+          if (existing) { Object.assign(existing, r); return existing; }
+        }
+        const row = {
+          id: r.id ?? nextId++,
+          created_at: r.created_at ?? new Date().toISOString(),
+          // sessions.total_ms ha DEFAULT 0 nello schema reale (supabase-schema.sql);
+          // il client non lo invia mai nell'insert iniziale.
+          ...(table === 'sessions' ? { total_ms: 0 } : {}),
+          ...r,
+        };
+        store[table].push(row);
+        return row;
+      });
       return route.fulfill({ status: 201, headers: CORS_HEADERS, body: JSON.stringify(rows) });
     }
 
     if (method === 'GET') {
       let rows = store[table].slice();
+      for (const [key, val] of url.searchParams.entries()) {
+        if (key === 'order' || key === 'select' || key === 'limit' || key === 'on_conflict') continue;
+        if (val.startsWith('eq.')) {
+          const want = val.slice(3);
+          // eslint-disable-next-line eqeqeq
+          rows = rows.filter((r) => String(r[key]) == want);
+        }
+      }
       const order = url.searchParams.get('order');
       if (order) {
         const [col, dir] = order.split('.');
@@ -85,7 +131,12 @@ function installSupabaseMock(context, { rlsMode = 'broken' } = {}) {
       const idFilter = parseEqFilter(url, 'id');
       const patch = req.postDataJSON();
       let updated = [];
-      if (rlsMode === 'fixed' && idFilter !== null) {
+      // Le tabelle introdotte con le slide dinamiche (slides, site_config)
+      // sono scritte solo da admin.html, gated lato client da adminToken —
+      // non dal bug RLS pinnato su sessions: qui l'update va sempre a buon
+      // fine, a prescindere da rlsMode.
+      const bypassRlsSim = table === 'slides' || table === 'site_config';
+      if ((rlsMode === 'fixed' || bypassRlsSim) && idFilter !== null) {
         store[table].forEach((row) => {
           // eslint-disable-next-line eqeqeq
           if (String(row.id) == idFilter) {
@@ -94,10 +145,23 @@ function installSupabaseMock(context, { rlsMode = 'broken' } = {}) {
           }
         });
       }
-      // rlsMode === 'broken': nessuna riga viene toccata, ma la risposta è
-      // comunque 200 con corpo vuoto — esattamente come il PATCH reale
-      // osservato contro Supabase (200, body: []).
+      // rlsMode === 'broken' sulle altre tabelle: nessuna riga viene toccata,
+      // ma la risposta è comunque 200 con corpo vuoto — esattamente come il
+      // PATCH reale osservato contro Supabase (200, body: []).
       return route.fulfill({ status: 200, headers: CORS_HEADERS, body: JSON.stringify(updated) });
+    }
+
+    if (method === 'DELETE') {
+      const idFilter = parseEqFilter(url, 'id');
+      const removed = [];
+      if (idFilter !== null) {
+        store[table] = store[table].filter((row) => {
+          // eslint-disable-next-line eqeqeq
+          if (String(row.id) == idFilter) { removed.push(row); return false; }
+          return true;
+        });
+      }
+      return route.fulfill({ status: 200, headers: CORS_HEADERS, body: JSON.stringify(removed) });
     }
 
     return route.fulfill({ status: 405, headers: CORS_HEADERS, body: '[]' });

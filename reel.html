@@ -66,6 +66,19 @@
     font-style:italic; padding:0 2rem;
   }
 
+  /* Slide immagine + testo sovrapposto */
+  .slide-text-bg { position:relative; background:#000; }
+  .slide-bg-image {
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:cover; z-index:0;
+  }
+  .slide-text-bg::after {
+    content:''; position:absolute; inset:0; z-index:1;
+    background:linear-gradient(to bottom, rgba(0,0,0,.35), rgba(0,0,0,.55));
+  }
+  .slide-text-bg .slide-text,
+  .slide-text-bg .slide-footer { position:relative; z-index:2; }
+
   /* ── Dots indicator ──────────────────────────────────── */
   #dots {
     position:fixed; right:14px; top:50%; transform:translateY(-50%);
@@ -155,9 +168,9 @@
 <script>
 'use strict';
 
-const CFG     = window.APP_CONFIG;
-const SLIDES  = CFG.slides;
-const N       = SLIDES.length;
+const CFG = window.APP_CONFIG;
+let SLIDES = []; // popolato da fetchSlides() in init(), prima di renderSlides()
+let N = 0;
 
 // ═══════════════════════════════════════════════════════════
 // SUPABASE
@@ -254,6 +267,14 @@ async function getISP() {
   }
 }
 
+// Le slide del reel vivono nel DB (tabella `slides`, gestita da admin.html),
+// non più in config.js: ogni apertura del reel le legge fresche.
+async function fetchSlides() {
+  const { data, error } = await sb.from('slides').select('*').order('position', { ascending: true });
+  if (error) { console.error('[Slides] fetch fallito:', error.message); return []; }
+  return data || [];
+}
+
 async function initSession() {
   const [deviceModel, isp] = await Promise.all([getDeviceModel(), getISP()]);
   const { error } = await sb.from('sessions').insert({ ...SESSION, device_model: deviceModel, isp });
@@ -309,12 +330,39 @@ function renderSlides() {
     if (slide.type === 'image') {
       const img = document.createElement('img');
       img.className = 'slide-image';
-      img.src = slide.src;
+      img.src = slide.image_url;
       img.alt = slide.label || '';
       img.draggable = false;
       div.appendChild(img);
+
+    } else if (slide.type === 'video') {
+      const video = document.createElement('video');
+      video.className = 'slide-image'; // riusa object-fit:cover già definito
+      video.src = slide.video_url;
+      video.autoplay = true;
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.setAttribute('muted', ''); // alcuni browser richiedono l'attributo HTML, non solo la proprietà JS
+      div.appendChild(video);
+
+    } else if (slide.type === 'image_text') {
+      div.classList.add('slide-text-bg');
+      div.innerHTML = `
+        <img class="slide-bg-image" src="${slide.image_url}" alt="">
+        <div class="slide-text">
+          ${slide.eyebrow ? `<div class="slide-eyebrow" style="color:${slide.accent||'#fff'}">${slide.eyebrow}</div>` : ''}
+          <div class="slide-title" style="color:${slide.accent||'#fff'}">${(slide.title||'').replace(/\n/g,'<br>')}</div>
+          ${slide.body ? `<div class="slide-body">${slide.body}</div>` : ''}
+        </div>
+        ${slide.footer ? `<div class="slide-footer">${slide.footer}</div>` : ''}
+      `;
+
     } else {
-      // Text slide
+      // Ramo legacy 'text' (sfondo a tinta unita): mantenuto solo per
+      // compatibilità a ritroso, non più raggiungibile da admin.html.
       div.style.background = slide.bg || '#0d0d0d';
       div.innerHTML = `
         <div class="slide-text">
@@ -356,6 +404,15 @@ function goTo(index, animate = true) {
   // Update dots
   document.querySelectorAll('.dot').forEach(d => {
     d.classList.toggle('active', parseInt(d.dataset.index) === currentIndex);
+  });
+
+  // Il reel non è virtualizzato (tutte le slide sono nel DOM fin dall'inizio):
+  // senza questo, più slide video partirebbero tutte in autoplay insieme,
+  // fuori schermo, pesando su CPU/batteria. Solo quella corrente deve girare.
+  document.querySelectorAll('#reel video').forEach(v => {
+    const idx = parseInt(v.closest('.slide').dataset.index, 10);
+    if (idx === currentIndex) { v.currentTime = 0; v.play().catch(() => {}); }
+    else v.pause();
   });
 
   // Tracking
@@ -419,6 +476,7 @@ function onSlideLeave(idx) {
     session_id:    SESSION_ID,
     image_index:   idx,
     image_label:   SLIDES[idx]?.label || String(idx),
+    slide_id:      SLIDES[idx]?.id ?? null,
     dwell_ms:      Math.round(dwell),
     enter_hour:    enterHour,
     max_pause_ms:  t.pauses.length ? Math.max(...t.pauses) : 0,
@@ -578,6 +636,7 @@ async function sendHeart(e) {
     session_id:  SESSION_ID,
     image_index: currentIndex,
     image_label: SLIDES[currentIndex]?.label || String(currentIndex),
+    slide_id:    SLIDES[currentIndex]?.id ?? null,
     touch_x_pct: parseFloat(xPct.toFixed(3)),
     hour_of_day: new Date().getHours(),
   });
@@ -615,16 +674,27 @@ function joinPresence() {
 // INIT
 // ═══════════════════════════════════════════════════════════
 async function init() {
-  await initSession();
+  const [, slides] = await Promise.all([initSession(), fetchSlides()]);
+  SLIDES = slides;
+  N = SLIDES.length;
   joinPresence();
   document.getElementById('loader-overlay').classList.add('hide');
+
+  if (N === 0) {
+    // Nessuna slide configurata (es. admin le ha cancellate tutte): niente
+    // da scorrere, meglio un messaggio chiaro che un reel rotto in silenzio
+    // (goTo farebbe ((index % 0) + 0) % 0 = NaN).
+    document.body.innerHTML = '<p style="color:#fff;font-size:.9rem;text-align:center;padding:2rem">Nessuna slide configurata.<br>Contatta il presentatore.</p>';
+    return;
+  }
 
   renderSlides();
   goTo(0, false);
 
-  // Preload immagini
-  SLIDES.filter(s => s.type === 'image').forEach(s => {
-    const img = new Image(); img.src = s.src;
+  // Preload: sia 'image' semplice sia lo sfondo di 'image_text' hanno un
+  // image_url da precaricare; i video usano il preload nativo del tag <video>.
+  SLIDES.filter(s => s.type === 'image' || s.type === 'image_text').forEach(s => {
+    const img = new Image(); img.src = s.image_url;
   });
 }
 

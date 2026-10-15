@@ -7,8 +7,13 @@
  * 1. Crea un progetto su https://supabase.com
  * 2. Vai su Project Settings → API
  * 3. Copia "Project URL" e "anon public" key qui sotto
- * 4. Esegui supabase-schema.sql nel SQL Editor di Supabase
+ * 4. Esegui, in ordine, supabase-schema.sql, supabase-schema-updates.sql,
+ *    supabase-schema-updates-2.sql, supabase-schema-updates-3.sql nel SQL
+ *    Editor di Supabase
  * 5. Deploy su Netlify (connetti questo repo GitHub)
+ *
+ * Le slide del reel non si configurano più qui: si gestiscono da admin.html
+ * (vai su admin.html#<adminToken> dopo aver eseguito il passo 4).
  */
 
 window.APP_CONFIG = {
@@ -23,17 +28,9 @@ window.APP_CONFIG = {
   // ── Analytics password (rivelata a sorpresa in classe) ─
   analyticsToken: 'colonizzazione2026',
 
-  // ── Immagini del reel ────────────────────────────────
-  // Aggiungi qui le tue immagini (metti i file in images/)
-  // type: 'image' | 'text'
-  slides: [
-    { type: 'image', src: 'images/slide-01.jpg', label: 'Snowden' },
-    { type: 'image', src: 'images/slide-02.jpg', label: 'prodotto' },
-    { type: 'image', src: 'images/slide-03.jpg', label: 'petrolio' },
-    { type: 'image', src: 'images/slide-04.jpg', label: 'zuboff' },
-    { type: 'image', src: 'images/slide-05.jpg', label: 'internet' },
-    { type: 'image', src: 'images/slide-06.jpg', label: 'tecnologia' },
-    { type: 'image', src: 'images/slide-07.jpg', label: 'papa-francesco' },
-    { type: 'image', src: 'images/slide-08.jpg', label: 'privacy' },
-  ],
+  // ── Admin password (gestione slide e testi QR) ───────
+  // Cambiala prima di usare il progetto: chiunque la legga da qui può
+  // modificare le slide mostrate a tutti (stessa protezione "offuscamento
+  // lato client" di analyticsToken, nessuna autenticazione reale).
+  adminToken: 'cesolouncapoclan',
 };
